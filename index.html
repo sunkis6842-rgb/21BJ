@@ -757,18 +757,26 @@ window.LEADER = {
 
 // --- 進入時強制輸入暱稱（會一直問到有字串為止） ---
 (function ensureNickname(){
-  try {
-    let nick = localStorage.getItem(NICK_KEY) || '';
+  function sanitize(nick){
+    let s = String(nick||'').trim();
+    // Firestore docId can't have '/', keep other unicode characters
+    s = s.replace(/[\/]/g, '-');
+    return s;
+  }
+  try{
+    let nick = '';
+    try { nick = localStorage.getItem(NICK_KEY) || ''; } catch(e){ nick=''; }
     let guard = 0;
-    while((!nick || !nick.trim()) && guard < 5){
-      nick = prompt('請輸入你的暱稱（排行榜將以此顯示）：', '') || '';
-      if(nick) nick = nick.trim().slice(0,20);
+    while(!sanitize(nick) && guard < 6){
+      nick = prompt('請輸入你的暱稱（排行榜將以此顯示，可用中文/表情）:', '') || '';
       guard++;
     }
-    if(!nick){ nick = '玩家' + Math.floor(Math.random()*1000); }
-    localStorage.setItem(NICK_KEY, nick);
+    if(!sanitize(nick)){ nick = '玩家'; } // still fallback display
+    try { localStorage.setItem(NICK_KEY, nick); } catch(e){ /* ignore */ }
     LEADER.nick = nick;
-  } catch(e){ console.warn(e); }
+  }catch(e){
+    LEADER.nick = '玩家';
+  }
 })();
 
 // --- 讀/寫排行榜 ---
