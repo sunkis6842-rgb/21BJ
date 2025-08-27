@@ -162,6 +162,27 @@
 #leaderPanel .nums{display:flex;gap:8px;flex-wrap:wrap}
 #leaderPanel .badge{font-weight:800;padding:3px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);font-size:12px}
 </style>
+
+<style id="lb-pretty-v2">
+#leaderList{display:flex;flex-direction:column;gap:10px}
+.lb-item{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:12px 14px;border-radius:16px;
+  background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.03));
+  border:1px solid rgba(255,255,255,.12);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 6px 18px rgba(0,0,0,.22);
+}
+.lb-left{display:flex;align-items:center;gap:10px;min-width:0}
+.lb-medal{width:28px;height:28px;border-radius:999px;display:grid;place-items:center;font-weight:900;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.1)}
+.lb-medal.g{background:linear-gradient(135deg,#f7d774,#facc15);color:#3b2f00;border-color:#f59e0b}
+.lb-medal.s{background:linear-gradient(135deg,#e5e7eb,#d1d5db);color:#111827;border-color:#9ca3af}
+.lb-medal.b{background:linear-gradient(135deg,#f1c0a0,#d97706);color:#3f1d0b;border-color:#b45309}
+.lb-avatar{width:28px;height:28px;border-radius:999px;display:grid;place-items:center;font-weight:800;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.12)}
+.lb-name{font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:28vw}
+.lb-stats{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.lb-pill{font-weight:800;padding:4px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.08);font-size:12px;white-space:nowrap}
+.lb-empty{opacity:.7;padding:8px}
+</style>
 </head>
 <body>
 <canvas id="fx"></canvas>
@@ -223,7 +244,7 @@
 <section class="panel" id="leaderPanel">
   <div style="display:flex;align-items:center;justify-content:space-between;">
     <b>排行榜（前 10 名）</b>
-    <small id="leaderHint" style="opacity:.8">即時排行榜（雲端）</small>
+    
   </div>
   <div id="leaderList" class="histList" style="max-height:260px"></div>
 </section>
@@ -1049,22 +1070,32 @@ function renderBoard(){
 
   const box = document.getElementById("leaderList");
   if(!box) return;
-  const rows = list.map((r,i)=>{
-    const wr = r.winRatePct.toFixed(1) + "%";
-    return `
-      <div class="rankItem">
-        <div class="name">#${i+1} ${r.nick||"玩家"}</div>
-        <div class="nums">
-          <span class="badge">盈虧：${(r.profit||0)>=0?"+":""}${r.profit||0}</span>
-          <span class="badge">勝率：${wr}</span>
-          <span class="badge">局數：${r.rounds||0}</span>
-          <span class="badge">最長連勝：${r.bestStreak||0}</span>
-        </div>
+  
+const rows = list.map((r,i)=>{
+  const rank = i+1;
+  const medal = rank===1?'g':(rank===2?'s':(rank===3?'b':''));
+  const tag = medal ? `<div class="lb-medal ${medal}">${rank}</div>` : `<div class="lb-medal">${rank}</div>`;
+  const name = (r.nick||'玩家');
+  const initials = String(name).trim().slice(0,2) || '玩家';
+  const wr = ((r.winRatePct!=null?r.winRatePct:(r.rounds? (r.w/r.rounds*100):0))).toFixed(1) + '%';
+  return `
+    <div class="lb-item">
+      <div class="lb-left">
+        ${tag}
+        <div class="lb-avatar">${initials}</div>
+        <div class="lb-name">${name}</div>
       </div>
-    `;
-  }).join("") || '<div style="opacity:.7">目前沒有資料，玩幾局看看吧！</div>';
-  box.innerHTML = rows;
-  const hint = document.getElementById("leaderHint"); if(hint) hint.textContent = "統一排行榜（跨裝置）";
+      <div class="lb-stats">
+        <div class="lb-pill">盈虧：${(r.profit||0)>=0?'+':''}${r.profit||0}</div>
+        <div class="lb-pill">勝率：${wr}</div>
+        <div class="lb-pill">局數：${r.rounds||0}</div>
+        <div class="lb-pill">連勝：${r.bestStreak||0}</div>
+      </div>
+    </div>
+  `;
+}).join("") || '<div class="lb-empty">目前沒有資料，玩幾局看看吧！</div>';
+box.innerHTML = rows;
+
 });
   }
 
@@ -1189,22 +1220,32 @@ function renderBoard(){
 
   const box = document.getElementById("leaderList");
   if(!box) return;
-  const rows = list.map((r,i)=>{
-    const wr = r.winRatePct.toFixed(1) + "%";
-    return `
-      <div class="rankItem">
-        <div class="name">#${i+1} ${r.nick||"玩家"}</div>
-        <div class="nums">
-          <span class="badge">盈虧：${(r.profit||0)>=0?"+":""}${r.profit||0}</span>
-          <span class="badge">勝率：${wr}</span>
-          <span class="badge">局數：${r.rounds||0}</span>
-          <span class="badge">最長連勝：${r.bestStreak||0}</span>
-        </div>
+  
+const rows = list.map((r,i)=>{
+  const rank = i+1;
+  const medal = rank===1?'g':(rank===2?'s':(rank===3?'b':''));
+  const tag = medal ? `<div class="lb-medal ${medal}">${rank}</div>` : `<div class="lb-medal">${rank}</div>`;
+  const name = (r.nick||'玩家');
+  const initials = String(name).trim().slice(0,2) || '玩家';
+  const wr = ((r.winRatePct!=null?r.winRatePct:(r.rounds? (r.w/r.rounds*100):0))).toFixed(1) + '%';
+  return `
+    <div class="lb-item">
+      <div class="lb-left">
+        ${tag}
+        <div class="lb-avatar">${initials}</div>
+        <div class="lb-name">${name}</div>
       </div>
-    `;
-  }).join("") || '<div style="opacity:.7">目前沒有資料，玩幾局看看吧！</div>';
-  box.innerHTML = rows;
-  const hint = document.getElementById("leaderHint"); if(hint) hint.textContent = "統一排行榜（跨裝置）";
+      <div class="lb-stats">
+        <div class="lb-pill">盈虧：${(r.profit||0)>=0?'+':''}${r.profit||0}</div>
+        <div class="lb-pill">勝率：${wr}</div>
+        <div class="lb-pill">局數：${r.rounds||0}</div>
+        <div class="lb-pill">連勝：${r.bestStreak||0}</div>
+      </div>
+    </div>
+  `;
+}).join("") || '<div class="lb-empty">目前沒有資料，玩幾局看看吧！</div>';
+box.innerHTML = rows;
+
 });
   }
 
@@ -1255,6 +1296,75 @@ function renderBoard(){
     window.addEventListener('pagehide', flush);
     window.addEventListener('beforeunload', function(){ try{ if(typeof window.submitToBoard==='function'){ window.submitToBoard(); } }catch(e){} });
   })();
+</script>
+
+<script type="module">
+  import { getFirestore, collection, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+
+  // Aggregation: unify by normalized nickname
+  function __aggregateSnapshot(snap, idFromNick){
+    const map = new Map();
+    snap.forEach(d => {
+      const r = d.data() || {};
+      const key = idFromNick(r.nick || '');
+      const cur = map.get(key) || { nick: r.nick || key, rounds:0, w:0, l:0, p:0, profit:0, bestStreak:0, updatedAt:null };
+      cur.rounds += r.rounds || 0;
+      cur.w      += r.w || 0;
+      cur.l      += r.l || 0;
+      cur.p      += r.p || 0;
+      cur.profit += r.profit || 0;
+      cur.bestStreak = Math.max(cur.bestStreak||0, r.bestStreak||0);
+      try{
+        const ts = r.updatedAt?.toDate ? r.updatedAt.toDate() : null;
+        if(ts && (!cur.updatedAt || ts > cur.updatedAt)){
+          cur.updatedAt = ts; cur.nick = r.nick || cur.nick;
+        }
+      }catch(e){}
+      map.set(key, cur);
+    });
+    return Array.from(map.values()).map(x => {
+      const wr = (x.rounds ? (x.w / x.rounds * 100) : 0);
+      return { ...x, winRatePct: wr };
+    }).sort((a,b)=> (b.profit||0)-(a.profit||0) || (b.rounds||0)-(a.rounds||0)).slice(0,10);
+  }
+
+  export async function __renderOnceFast(db, idFromNick){
+    try{
+      const q = query(collection(db, "leaderboard"), orderBy("profit", "desc"), limit(10));
+      const snap = await getDocs(q);
+      const list = __aggregateSnapshot(snap, idFromNick);
+      const box = document.getElementById("leaderList");
+      if(!box) return;
+      
+const rows = list.map((r,i)=>{
+  const rank = i+1;
+  const medal = rank===1?'g':(rank===2?'s':(rank===3?'b':''));
+  const tag = medal ? `<div class="lb-medal ${medal}">${rank}</div>` : `<div class="lb-medal">${rank}</div>`;
+  const name = (r.nick||'玩家');
+  const initials = String(name).trim().slice(0,2) || '玩家';
+  const wr = ((r.winRatePct!=null?r.winRatePct:(r.rounds? (r.w/r.rounds*100):0))).toFixed(1) + '%';
+  return `
+    <div class="lb-item">
+      <div class="lb-left">
+        ${tag}
+        <div class="lb-avatar">${initials}</div>
+        <div class="lb-name">${name}</div>
+      </div>
+      <div class="lb-stats">
+        <div class="lb-pill">盈虧：${(r.profit||0)>=0?'+':''}${r.profit||0}</div>
+        <div class="lb-pill">勝率：${wr}</div>
+        <div class="lb-pill">局數：${r.rounds||0}</div>
+        <div class="lb-pill">連勝：${r.bestStreak||0}</div>
+      </div>
+    </div>
+  `;
+}).join("") || '<div class="lb-empty">目前沒有資料，玩幾局看看吧！</div>';
+box.innerHTML = rows;
+
+    }catch(e){
+      // ignore
+    }
+  }
 </script>
 </body>
 </html>
