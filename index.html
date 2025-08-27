@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Blackjack v1.00</title>
+<style>
+  :root{ --felt:#064420; --ink:#e9fbf6; --ok:#22c55e; --warn:#fbbf24; --bad:#ef4444; --accent:#60a5fa; }
+  *{box-sizing:border-box} html,body{height:100%}
+  body{ margin:0; background:linear-gradient(180deg,#0b3b2d,#064420); color:var(--ink);
+        font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans TC",Arial,sans-serif; }
+  header{ padding:8px 10px; text-align:center; background:rgba(0,0,0,.25); position:sticky; top:0; z-index:10 }
+  header h1{ margin:0; font-size:16px }
+  main{ max-width:1100px; margin:0 auto; padding:10px; display:grid; grid-template-columns: 1.1fr .9fr; gap:10px; padding-bottom:160px; }
+  .panel{ background:rgba(0,0,0,.25); border:1px solid rgba(255,255,255,.12); border-radius:14px; padding:10px }
+  .hand{ display:flex; gap:8px; align-items:center; justify-content:center; min-height:96px; background:rgba(255,255,255,.06); border-radius:12px; }
+  .cards{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; justify-content:center}
+  .card{ width:56px; height:80px; border-radius:10px; background:#fff; color:#111; display:grid; place-items:center; font-weight:800; border:1px solid #ddd }
+  .card.red{ color:#b0122c }
+  #roundBanner{ text-align:center; margin-top:8px; font-weight:800; padding:6px 10px; border-radius:10px; display:none }
+  .bwin{ background:#14532d } .blose{ background:#7f1d1d } .bpush{ background:#334155 }
+  .row{ display:flex; flex-wrap:wrap; gap:8px; align-items:center }
+  .btn{ font-size:16px; font-weight:800; border:none; border-radius:12px; padding:10px 14px; cursor:pointer; color:#091013 }
+  .p{ background:#60a5fa } .g{ background:#34d399 } .n{ background:#94a3b8 } .w{ background:#fbbf24 } .d{ background:#ef4444; color:#fff }
+  .chip{ background:#ddd; border:4px solid rgba(0,0,0,.2); border-radius:999px; width:56px; height:56px; display:grid; place-items:center; font-weight:900; font-size:12px; color:#111 }
+  .chip.c100{background:#9fb4ff}.chip.c200{background:#b1f0c9}.chip.c500{background:#ffb3c1}.chip.c1000{background:#ffd166}
+  .betarea{ position:relative; height:110px; border-radius:12px; outline:1px dashed rgba(255,255,255,.25); background:rgba(0,0,0,.20); display:flex; align-items:center; justify-content:center; margin-top:8px }
+  .stat{ display:grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap:8px; margin-top:8px }
+  @media (max-width: 900px){ main{ grid-template-columns: 1fr } .btn{ font-size:18px } }
+  .bar{ position:fixed; left:50%; transform:translateX(-50%); bottom:max(8px, env(safe-area-inset-bottom));
+         display:grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap:8px; width:min(1000px,calc(100% - 16px));
+         background:rgba(0,0,0,.35); border:1px solid rgba(255,255,255,.18); border-radius:16px; padding:8px; z-index:9999 }
+.ph-label{font-weight:700;margin-right:6px}
+.hand.active{ outline:2px solid rgba(255,255,255,.35) }
+
+  .bar .btn{ font-size:20px; padding:16px 18px; min-height:60px; border-radius:16px }
+  @media (max-width: 460px){
+    .bar{ grid-template-columns: repeat(2, minmax(0,1fr)); }
+    .bar .btn{ font-size:18px; min-height:56px; }
+  }
+
+
+/* --- Pretty stats (history & KPIs) --- */
+.kpiGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:6px}
+.kpi{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:10px 12px}
+.kpi .label{font-size:12px;opacity:.8}
+.kpi .val{font-size:20px;font-weight:900;margin-top:2px}
+.kpi.win .val{color:#34d399}
+.kpi.lose .val{color:#ef4444}
+.kpi.push .val{color:#eab308}
+.kpi.profit .val.pos{color:#34d399}
+.kpi.profit .val.neg{color:#ef4444}
+.histHead{display:flex;align-items:center;gap:10px;margin-top:8px;font-weight:700;opacity:.9}
+.histList{margin-top:6px;max-height:200px;overflow:auto;font-size:13px;background:rgba(0,0,0,.15);padding:8px;border-radius:8px}
+.histItem{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:6px 8px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);margin-bottom:6px}
+.tag{font-weight:800;padding:2px 8px;border-radius:999px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06)}
+.tag.win{background:rgba(16,185,129,.15);border-color:rgba(16,185,129,.35)}
+.tag.lose{background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.35)}
+.tag.push{background:rgba(234,179,8,.15);border-color:rgba(234,179,8,.35)}
+.tag.bet{background:rgba(96,165,250,.15);border-color:rgba(96,165,250,.35)}
+.tag.profit{background:rgba(148,163,184,.15);border-color:rgba(148,163,184,.35)}
+.sep{opacity:.35;margin:0 4px}
+@media (max-width:900px){ .kpiGrid{grid-template-columns:repeat(2,minmax(0,1fr));} }
+
+
+/* --- Pretty Bet Info Bar --- */
+.betinfo{
+  display:flex;justify-content:space-between;align-items:center;
+  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);
+  border-radius:12px;padding:10px 14px;font-weight:700;font-size:15px
+}
+.betinfo .item{display:flex;align-items:center;gap:6px}
+.betinfo .label{opacity:.8;font-size:13px}
+.betinfo .val{font-size:18px;font-weight:900}
+.betinfo .chips{
+  width:28px;height:28px;border-radius:50%;border:2px solid #fff;
+  display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;
+  background:radial-gradient(circle at 30% 30%,#fbbf24,#d97706);color:#111
+}
+.betinfo .bet{background:radial-gradient(circle at 30% 30%,#60a5fa,#2563eb);color:#fff}
+
+
+/* --- Pretty Chip Buttons --- */
+.chipsBar{
+  display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:12px 0
+}
+.chipBtn{
+  width:70px;height:70px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-weight:900;font-size:18px;color:#fff;
+  border:4px solid #fff;box-shadow:0 3px 8px rgba(0,0,0,.5);
+  cursor:pointer;transition:transform .15s ease;
+  user-select:none;-webkit-user-select:none;touch-action:manipulation;
+}
+.chipBtn:active{transform:scale(.9)}
+.chip100{background:#10b981;}   /* 綠 */
+.chip200{background:#3b82f6;}   /* 藍 */
+.chip500{background:#ef4444;}   /* 紅 */
+.chip1000{background:#fbbf24;color:#111;} /* 金 */
+
+
+/* --- Dealer facedown card: Red diamond pattern --- */
+.card.back{
+  background-color:#b91c1c;
+  background-image: radial-gradient(#ef4444 15%, transparent 16%),
+    radial-gradient(#ef4444 15%, transparent 16%);
+  background-size:20px 20px;
+  background-position:0 0,10px 10px;
+  border:3px solid #fff;
+  border-radius:8px;
+  box-shadow:0 2px 6px rgba(0,0,0,.6);
+  color:transparent; /* ensure no accidental text shows */
+}
+
+</style>
+<style>#fx{position:fixed;inset:0;pointer-events:none;z-index:9990;opacity:0}</style>
+
+<!-- Leaderboard CSS START -->
+<style id="leaderboard-style">
+#leaderPanel .rankItem{
+  display:flex;gap:8px;align-items:center;justify-content:space-between;
+  padding:6px 8px;border-radius:10px;background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.06);margin-bottom:6px;font-size:13px
+}
+#leaderPanel .name{font-weight:900}
+#leaderPanel .nums{opacity:.95;display:flex;gap:10px;flex-wrap:wrap}
+#leaderPanel .badge{font-weight:800;padding:2px 8px;border-radius:999px;
+  border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06)}
+</style>
+<!-- Leaderboard CSS END -->
+</head>
+<body>
+<canvas id="fx"></canvas>
+<header><h1>Blackjack v1.00</h1></header>
+
+<main>
+  <section class="panel" id="table">
+    <div class="hand" id="dealer">
+      <b>莊家</b>：<span id="dealerTotal">—</span>
+      <div class="cards" id="dealerCards"></div>
+    </div>
+    <div style="height:6px"></div>
+    <div id="playersWrap"></div>
+    <div id="roundBanner"></div>
+  </section>
+
+  <section class="panel" id="side">
+    <div class="row">
+      <div>模式：<b id="mode">平注</b></div>
+      <div>單位：<b id="unit">100</b></div>
+      <button class="btn n" onclick="toggle1326()">切換 1-3-2-6</button>
+      <button class="btn n" onclick="clearBet()">清空下注</button>
+      <button class="btn g" onclick="carry()">🎒 換籌碼</button>
+      <button class="btn w" onclick="window.location.reload()">🔄 重新整理</button>
+    </div>
+        
+
+<section class="panel" id="chipPanel">
+  <div class="chipsBar">
+    <div class="chipBtn chip100" onclick="pressChip(100)">100</div>
+    <div class="chipBtn chip200" onclick="pressChip(200)">200</div>
+    <div class="chipBtn chip500" onclick="pressChip(500)">500</div>
+    <div class="chipBtn chip1000" onclick="pressChip(1000)">1000</div>
+  </div>
+</section>
+
+<div class="betinfo">
+  <div class="item">
+    <div class="chips bet">🎲</div>
+    <span class="label">當局下注</span>
+    <span class="val" id="betNow">0</span>
+  </div>
+  <div class="item">
+    <div class="chips">💰</div>
+    <span class="label">籌碼</span>
+    <span class="val" id="chips">5000</span>
+  </div>
+</div>
+
+    <div class="stat">
+      <div>局數：<b id="rounds">0</b></div>
+      <div>勝率：<b id="winrate">0%</b></div>
+      <div>連勝/最長：<b id="streak">0</b>/<b id="bestStreak">0</b></div>
+    </div>
+    <section class="panel" id="advicePanel">
+    <b>建議策略</b>：<span id="advice">請先下注並發牌。</span>
+  </section>
+  <section class="panel" id="histPanel">
+<!-- Leaderboard Panel START -->
+<section class="panel" id="leaderPanel">
+  <div style="display:flex;align-items:center;justify-content:space-between;">
+    <b>排行榜（前 10 名）</b>
+    <small id="leaderHint" style="opacity:.8">每 5 局或籌碼歸 0 會上傳</small>
+  </div>
+  <div id="leaderList" class="histList" style="max-height:260px"></div>
+</section>
+<!-- Leaderboard Panel END -->
+
+    <div class="kpiGrid">
+      <div class="kpi win"><div class="label">勝</div><div class="val" id="wCount">0</div></div>
+      <div class="kpi lose"><div class="label">負</div><div class="val" id="lCount">0</div></div>
+      <div class="kpi push"><div class="label">和</div><div class="val" id="pCount">0</div></div>
+      <div class="kpi profit"><div class="label">累積盈虧</div><div class="val" id="profitSum">0</div></div>
+    </div>
+    <div class="histHead">歷史戰績</div>
+    <div id="hist" class="histList"></div>
+  </section>
+</section>
+
+  <section class="panel" id="remainBox" style="margin-top:8px">
+    <div>剩餘牌數：<b id="remainCount">260</b> / <b id="remainTotal">260</b> <span id="remainPct">(100%)</span>
+      <span id="reshuffleHint" style="display:none">→ 接近洗牌</span>
+    </div>
+    <div style="position:relative; width:100%; height:10px; background:rgba(255,255,255,.12); border-radius:999px; overflow:hidden; margin-top:6px">
+      <span id="remainBar" style="position:absolute; inset:0 0 0 0; width:100%; background:linear-gradient(90deg,#22c55e,#eab308)"></span>
+    </div>
+  </section>
+
+</main>
+
+<div class="bar">
+  <button class="btn p" id="btnDeal" onclick="newRound()">🃏 發牌</button>
+  <button class="btn g" id="btnHit" onclick="hit()" disabled>➕ 要牌</button>
+  <button class="btn n" id="btnStand" onclick="stand()" disabled>✋ 停牌</button>
+  <button class="btn w" id="btnDouble" onclick="doubleDown()" disabled>2× 加倍</button>
+  <button class="btn n" id="btnSplit" onclick="splitOnce()" disabled>↔️ 分牌</button>
+  <button class="btn d" id="btnSurrender" onclick="surrender()" disabled>🏳️ 投降</button>
+</div>
+
+<script>
+// 簡易音效/震動
+(function(){
+  var AC = window.AudioContext || window.webkitAudioContext; var ctx=null;
+  function ensure(){ try{ if(!ctx) ctx=new AC(); }catch(e){} }
+  function beep(f,d,t,g){ ensure(); if(!ctx) return; d=d||0.12; t=t||'sine'; g=g||0.04;
+    var o=ctx.createOscillator(), v=ctx.createGain(); o.type=t; o.frequency.value=f; v.gain.value=g;
+    o.connect(v).connect(ctx.destination); o.start(); o.stop(ctx.currentTime+d); }
+  window.splay=function(name){
+    try{
+      switch(name){
+        case 'deal': beep(420,0.06,'triangle',0.03); beep(300,0.06,'triangle',0.02); break;
+        case 'hit': beep(520,0.08,'sine',0.05); break;
+        case 'stand': beep(220,0.08,'sine',0.04); break;
+        case 'chip': beep(800,0.03,'square',0.04); beep(600,0.04,'square',0.03); break;
+        case 'surrender': beep(160,0.15,'sine',0.05); break;
+        case 'win': beep(660,0.10,'triangle',0.05); setTimeout(function(){beep(880,0.12,'triangle',0.05);},90); break;
+        case 'push': beep(420,0.08,'sine',0.04); break;
+        case 'lose': beep(140,0.18,'sine',0.05); break;
+      }
+    }catch(e){}
+  };
+})(); 
+function vib(ms){ try{ if(navigator.vibrate) navigator.vibrate(ms||20);}catch(e){} }
+
+const SUITS=['♠','♥','♦','♣'], RANKS=['A','2','3','4','5','6','7','8','9','10','J','Q','K'], REDS={'♥':1,'♦':1};
+function buildDeck(){ const cs=[]; for(const s of SUITS) for(const r of RANKS) cs.push({rank:r,suit:s}); return cs; }
+function shuffle(a){ const x=[...a]; for(let i=x.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[x[i],x[j]]=[x[j],x[i]];} return x; }
+function buildShoe(n=5){ let s=[]; for(let i=0;i<n;i++) s.push(...buildDeck()); return shuffle(s); }
+function cardValues(c){ if(c.rank==='A')return[1,11]; if(['J','Q','K'].includes(c.rank))return[10]; return [parseInt(c.rank,10)]; }
+function totals(cs){ let t=[0]; for(const c of cs){ const vs=cardValues(c); const nxt=[]; for(const b of t) for(const v of vs) nxt.push(b+v); t=nxt; }
+  return Array.from(new Set(t)).sort((a,b)=>a-b); }
+function bestTotal(cs){ const ts=totals(cs); const ok=ts.filter(t=>t<=21); return ok.length?Math.max(...ok):Math.min(...ts); }
+function isSoft(cs){ const best=bestTotal(cs); return totals(cs).some(t=>t<=21 && t!==best); }
+function isBlackjack(cs){ return cs.length===2 && bestTotal(cs)===21; }
+function isPair(cs){ return cs.length===2 && cs[0].rank===cs[1].rank; }
+const SHOE_TOTAL = 52*5;
+function prettyPlayerTotal(cs){
+  if(!cs || !cs.length) return '—';
+  const ts = totals(cs);
+  const under = ts.filter(t=>t<=21);
+  if(under.length>=2){
+    // show lowest and highest non-bust totals
+    return under[0] + '/' + under[under.length-1];
+  }
+  // If only one viable total (or all bust), show bestTotal
+  return String(bestTotal(cs));
+}
+
+
+
+function upcard(){ return state.dealer[0]?state.dealer[0].rank:null; }
+function upVal(u){ return u==='A'?11: (u==='J'||u==='Q'||u==='K'?10:parseInt(u,10)); }
+function adviceBasic(){
+  if(!state.allowActions) return '請先下注並發牌。';
+  const h = state.playerHands[state.activeHand];
+  const p = bestTotal(h);
+  const soft = isSoft(h);
+  const pair = isPair(h);
+  const uRank = upcard(); if(!uRank) return '—';
+  const u = upVal(uRank);
+  let rec='Hit', note='';
+  if(!soft && h.length===2){
+    if(p===16 && (u===9||u===10||u===11)) note='可考慮投降（16 vs 9/10/A）';
+    else if(p===15 && u===10) note='可考慮投降（15 vs 10）';
+  }
+  if(pair){
+    const r=h[0].rank;
+    if(r==='A'||r==='8') rec='Split';
+    else if(r==='10'||r==='K'||r==='Q'||r==='J') rec='Stand';
+    else if(r==='9') rec=((u>=2&&u<=6)||u===8||u===9)?'Split':'Stand';
+    else if(r==='7') rec=(u<=7)?'Split':'Hit';
+    else if(r==='6') rec=(u>=2&&u<=6)?'Split':'Hit';
+    else if(r==='5') rec=(u<=9)?'Double':'Hit';
+    else if(r==='4') rec=(u===5||u===6)?'Split':'Hit';
+    else if(r==='3'||r==='2') rec=(u>=2&&u<=7)?'Split':'Hit';
+  } else if(soft){
+    if(p>=19){ rec=(p===19 && u===6)?'Double':'Stand'; }
+    else if(p===18){ if(u<=6 && u>=3) rec='Double'; else if(u===2||u===7||u===8) rec='Stand'; else rec='Hit'; }
+    else if(p===17){ rec=(u>=3&&u<=6)?'Double':'Hit'; }
+    else if(p<=16 && p>=15){ rec=(u>=4&&u<=6)?'Double':'Hit'; }
+    else if(p<=14 && p>=13){ rec=(u>=5&&u<=6)?'Double':'Hit'; }
+  } else {
+    if(p>=17) rec='Stand';
+    else if(p>=13 && p<=16) rec=(u<=6)?'Stand':'Hit';
+    else if(p===12) rec=(u>=4 && u<=6)?'Stand':'Hit';
+    else if(p===11) rec='Double';
+    else if(p===10) rec=(u<=9)?'Double':'Hit';
+    else if(p===9) rec=(u>=3&&u<=6)?'Double':'Hit';
+    else rec='Hit';
+  }
+  let zh = rec==='Hit'?'要牌（Hit）': rec==='Stand'?'停牌（Stand）': rec==='Double'?'加倍（Double）': rec==='Split'?'分牌（Split）': rec;
+  if(note) zh += ' · ' + note;
+  return zh;
+}
+
+function updateRemainUI(){
+  try{
+    var left = state.shoe ? state.shoe.length : SHOE_TOTAL;
+    var pct = Math.max(0, Math.min(100, Math.round(left/SHOE_TOTAL*100)));
+    var bar = document.getElementById('remainBar');
+    var cnt = document.getElementById('remainCount');
+    var tot = document.getElementById('remainTotal');
+    var pctEl = document.getElementById('remainPct');
+    var hint = document.getElementById('reshuffleHint');
+    if(cnt) cnt.textContent = left;
+    if(tot) tot.textContent = SHOE_TOTAL;
+    if(pctEl) pctEl.textContent = '('+pct+'%)';
+    if(bar) bar.style.width = pct+'%';
+    if(hint) hint.style.display = left <= SHOE_TOTAL * (state.reshuffleAt || 0.5) ? 'inline' : 'none';
+  }catch(e){}
+}
+
+// 狀態
+window.state = {
+  shoe: buildShoe(5), reshuffleAt:0.5,
+  history: [], wCount:0, lCount:0, pCount:0, profitSum:0,
+  playerHands:[[]], dealer:[], activeHand:0,
+  chips:5000, baseUnit:100, bet:0,
+  allowActions:false, doubled:false, surrendered:false, canSplit:true,
+  rounds:0, wins:0, streak:0, bestStreak:0,
+  schemeOn:false, scheme:[1,3,2,6], stage:0,
+  flatStacks:{100:0,200:0,500:0,1000:0},
+  initChips:5000, streakMilestone:0, streak4Fired:false
+};
+
+function flatTotal(){ return Object.entries(state.flatStacks).reduce((s,[d,c])=>s+Number(d)*(c||0),0); }
+function getBetAmount(){ return state.schemeOn ? state.baseUnit * state.scheme[state.stage] : flatTotal(); }
+function fmtSigned(n){ return (n>=0?'+':'')+n; }
+
+function render(){
+  document.getElementById('chips').textContent = state.chips;
+  document.getElementById('unit').textContent = state.baseUnit;
+  document.getElementById('mode').textContent = state.schemeOn?'1-3-2-6':'平注';
+  document.getElementById('betNow').textContent = state.allowActions? state.bet : getBetAmount();
+  document.getElementById('rounds').textContent = state.rounds;
+  document.getElementById('streak').textContent = state.streak;
+  document.getElementById('bestStreak').textContent = state.bestStreak;
+  
+  document.getElementById('winrate').textContent = state.rounds? ((state.wins/state.rounds)*100).toFixed(1)+'%':'0%';
+  document.getElementById('advice').textContent = adviceBasic();
+  // history summary
+  document.getElementById('wCount').textContent = state.wCount||0;
+  document.getElementById('lCount').textContent = state.lCount||0;
+  document.getElementById('pCount').textContent = state.pCount||0;
+  var psEl=document.getElementById('profitSum'); if(psEl){ psEl.textContent=fmtSigned(state.profitSum); psEl.className='val '+(state.profitSum>=0?'pos':'neg'); }
+
+  // dealer cards
+  const dc=document.getElementById('dealerCards'); dc.innerHTML='';
+  const reveal = !state.allowActions;
+  state.dealer.forEach((c,i)=>{
+    const el=document.createElement('div');
+    if(i===1 && !reveal){
+      el.className='card back'; // facedown: styled by CSS, no text
+    }else{
+      el.className='card'+(REDS[c.suit]?' red':'');
+      el.textContent=c.rank+c.suit;
+    }
+    dc.appendChild(el);
+  });
+  document.getElementById('dealerTotal').textContent = (reveal ? bestTotal(state.dealer) : (state.dealer[0] ? (state.allowActions && state.dealer[0].rank==='A' ? '1/11' : cardValues(state.dealer[0])[0]) : '—'));
+  // Dealer Ace hint 1/11
+  var up = state.dealer[0]? state.dealer[0].rank : null;
+  var hintEl = document.getElementById('dealerAceHint');
+  if(hintEl){ hintEl.style.display = (state.allowActions && up==='A' ? 'inline-block' : 'none'); }// players (support split)
+  const wrap=document.getElementById('playersWrap'); wrap.innerHTML='';
+  for(let i=0;i<state.playerHands.length;i++){ const h=state.playerHands[i]; const handDiv=document.createElement('div'); handDiv.className='hand'+(i===state.activeHand && state.allowActions?' active':'');
+    const label=document.createElement('b'); label.className='ph-label'; label.textContent = state.playerHands.length>1? ('玩家'+(i+1)+'：') : '玩家：';
+    const total=document.createElement('span'); total.id = 'playerTotal'+i; total.textContent = h.length? prettyPlayerTotal(h):'—';
+    const cards=document.createElement('div'); cards.className='cards';
+    h.forEach(c=>{ const el=document.createElement('div'); el.className='card'+(REDS[c.suit]?' red':''); el.textContent=c.rank+c.suit; cards.appendChild(el); });
+    handDiv.appendChild(label); handDiv.appendChild(total); handDiv.appendChild(cards);
+    wrap.appendChild(handDiv);
+  }
+  // buttons based on active hand
+  const h = state.playerHands[state.activeHand];
+  document.getElementById('btnHit').disabled = !state.allowActions;
+  document.getElementById('btnStand').disabled = !state.allowActions;
+  document.getElementById('btnDouble').disabled = !state.allowActions || state.doubled || h.length!==2 || state.chips<state.bet;
+  document.getElementById('btnSplit').disabled  = !state.allowActions || !isPair(h) || state.chips<state.bet || !state.canSplit;
+  document.getElementById('btnSurrender').disabled = !state.allowActions || h.length!==2;
+
+  var dealBtn=document.getElementById('btnDeal'); if(dealBtn) dealBtn.disabled = !!state.allowActions;
+}
+
+function clearBanner(){ const b=document.getElementById('roundBanner'); b.style.display='none'; b.className=''; b.textContent=''; }
+function showBanner(kind, txt){ const b=document.getElementById('roundBanner'); b.className = kind==='win'?'bwin': kind==='lose'?'blose':'bpush'; b.textContent=txt; b.style.display='block'; }
+
+function ensureShoe(){ const threshold=52*5*state.reshuffleAt; if(state.shoe.length<threshold){ state.shoe=buildShoe(5); } }
+function draw(){ ensureShoe(); var __c = state.shoe.pop(); try{ updateRemainUI(); }catch(e){} return __c; }
+
+function pressChip(v){
+  if(state.schemeOn){ state.baseUnit=v; } else { state.flatStacks[v]=(state.flatStacks[v]||0)+1; }
+  try{splay('chip');vib(12);}catch(e){}
+  render();
+}
+
+function toggle1326(){ state.schemeOn=!state.schemeOn; render(); }
+function clearBet(){ if(state.schemeOn){ state.baseUnit=0; } else { state.flatStacks={100:0,200:0,500:0,1000:0}; } render(); }
+function carry(){ const x=prompt('請輸入欲攜帶入桌的籌碼金額（正整數）','1000'); const v=Math.max(0, Math.floor(parseInt(x||'0',10))); if(v>0){ state.chips+=v; state.initChips=state.chips; render(); } }
+function resetChips(){ state.chips=state.initChips; state.flatStacks={100:0,200:0,500:0,1000:0}; state.stage=0; state.allowActions=false; state.playerHands=[[]]; state.dealer=[]; state.activeHand=0; state.bet=0; state.doubled=false; state.surrendered=false; state.canSplit=true; render(); }
+
+function newRound(){
+  // 防止牌局未結算就重發
+  if(state && state.allowActions){ try{toast('本局尚未結算');}catch(e){} return; }
+ splay('deal'); vib(12);
+  // 清桌於按下發牌時進行
+  clearBanner();
+  state.allowActions=false; state.playerHands=[[]]; state.dealer=[]; state.activeHand=0; state.bet=0;
+  state.doubled=false; state.surrendered=false; state.canSplit=true; render();
+clearBanner();
+  if(state.allowActions) return;
+  const need = getBetAmount();
+  if(need<=0 || state.chips < need){ showBanner('push','請先下注'); return; }
+  state.playerHands=[[]]; state.dealer=[]; state.activeHand=0;
+  state.doubled=false; state.surrendered=false; state.canSplit=true;
+  state.bet = need; state.chips -= state.bet;
+  state.playerHands[0].push(draw()); state.dealer.push(draw());
+  state.playerHands[0].push(draw()); state.dealer.push(draw());
+  state.allowActions=true;
+  if(isBlackjack(state.playerHands[0])){ state.allowActions=false; settle(); } else render();
+}
+
+function hit(){
+  if(!state.allowActions) return;
+  const h = state.playerHands[state.activeHand];
+  h.push(draw()); render();
+  const t = bestTotal(h);
+  if(t>=21){
+    // auto-advance: if there's another hand pending, switch; else settle
+    nextHandOrSettle();
+  }
+}
+
+
+function nextHandOrSettle(){
+  // If there are two hands (after split), move to the next one; otherwise go to dealer/settle
+  if(state.playerHands && state.playerHands.length===2 && state.activeHand===0){
+    state.activeHand = 1;
+    state.allowActions = true;
+    render();
+    return;
+  }
+  // No more hands to play, proceed to dealer and settlement
+  state.allowActions = false;
+  settle();
+}
+
+function stand(){
+  if(!state.allowActions) return;
+  nextHandOrSettle();
+}
+
+function doubleDown(){
+  if(!state.allowActions) return;
+  const h = state.playerHands[state.activeHand];
+  if(h.length!==2 || state.chips<state.bet) return;
+  state.chips -= state.bet; state.bet *= 2; state.doubled=true;
+  // One-card draw then stand for this hand
+  h.push(draw()); render();
+  nextHandOrSettle();
+}
+
+function splitOnce(){
+  if(!state.allowActions) return;
+  const h=state.playerHands[state.activeHand];
+  if(!isPair(h) || !state.canSplit || state.chips<state.bet) return;
+  // place the same base wager on the second hand and double total bet
+  state.chips -= state.bet; 
+  state.bet *= 2;
+  const c=h.pop(); state.playerHands=[[h[0]],[c]];
+  state.canSplit=false; state.activeHand=0;
+  state.playerHands[0].push(draw()); state.playerHands[1].push(draw());
+  state.allowActions=true;
+  render();
+}
+
+function surrender(){ splay('surrender'); vib(20);
+  if(!state.allowActions) return;
+  if(state.playerHands.length!==1 || state.playerHands[0].length!==2) return;
+  state.surrendered=true; state.allowActions=false; settle();
+}
+
+function dealerPlay(){
+  while(true){
+    const t=bestTotal(state.dealer), soft=isSoft(state.dealer);
+    if(t<17) state.dealer.push(draw());
+    else if(t===17 && soft) { break; }
+    else break;
+  }
+}
+
+function settle(){
+  // 結算階段關閉動作、允許下一局
+  state.allowActions=false;
+  dealerPlay(); render();
+  const dealerT=bestTotal(state.dealer);
+  let totalPayout=0;
+  const handsCount=state.playerHands.length;
+  const wagerPerHand=state.bet / handsCount;
+
+  state.playerHands.forEach((h,idx)=>{
+    const t=bestTotal(h);
+    let outcome;
+    if(state.surrendered && handsCount===1 && idx===0) outcome='surrender';
+    else if(t>21) outcome='lose';
+    else if(dealerT>21) outcome='win';
+    else if(t>dealerT) outcome='win';
+    else if(t<dealerT) outcome='lose';
+    else outcome='push';
+
+    if(isBlackjack(h) && handsCount===1 && !state.doubled && outcome!=='surrender'){
+      const pay=Math.floor(wagerPerHand*2.5); totalPayout+=pay; return;
+    }
+    if(outcome==='win') totalPayout += Math.floor(wagerPerHand*2);
+    else if(outcome==='push') totalPayout += Math.floor(wagerPerHand);
+    else if(outcome==='surrender') totalPayout += Math.floor(wagerPerHand*0.5);
+  });
+
+  const profit = totalPayout - state.bet;
+  state.chips += totalPayout;
+
+  const ts = new Date().toLocaleTimeString();
+  const entry = { ts, round: state.rounds+1, bet: state.bet, payout: totalPayout, profit, player: state.playerHands.map(h=>bestTotal(h)), dealer: bestTotal(state.dealer) };
+  state.history.unshift(entry);
+  if(state.history.length>120) state.history.pop();
+
+  if(profit>0) state.wCount++; else if(profit<0) state.lCount++; else state.pCount++;
+  state.profitSum += profit;
+  render();
+
+  // render history list
+  const box = document.getElementById('hist');
+  if(box){
+    const lines = state.history.slice(0,40).map(e=>{
+      const pd = Array.isArray(e.player)? (e.player.length>1? e.player.join('/') : e.player[0]) : e.player;
+      const outcome = e.profit>0?'win':(e.profit<0?'lose':'push');
+      return `<div class="histItem">
+        <span class="tag ${outcome}">${outcome==='win'?'勝':outcome==='lose'?'負':'和'}</span>
+        <span class="tag bet">第${e.round}局</span>
+        <span class="sep">|</span>
+        <span>下注 <b>${e.bet}</b> → 返還 <b>${e.payout}</b></span>
+        <span class="sep">|</span>
+        <span class="tag profit">盈虧 ${fmtSigned(e.profit)}</span>
+        <span class="sep">|</span>
+        <span>玩家 <b>${pd}</b> vs 莊家 <b>${e.dealer}</b></span>
+        <span style="margin-left:auto;opacity:.6">${e.ts}</span>
+      </div>`;
+    }).join('');
+    box.innerHTML = lines;
+  }
+
+  
+  state.rounds++;
+  if(profit>0){
+    state.wins++; 
+    state.streak++; 
+    if(state.streak>state.bestStreak) state.bestStreak=state.streak;
+    // Fireworks exactly when reaching 4-win streak (first time in the streak)
+    try{
+      if(typeof Fx!=='undefined' && state.streak===4 && !state.streak4Fired){ 
+        Fx.burstFull(); 
+        state.streak4Fired = true; 
+      }
+    }catch(e){}
+    showBanner('win','✅ 勝 '+(profit>=0?'+':'')+profit); 
+    try{splay('win');}catch(e){}
+  }else if(profit<0){
+    state.streak=0; 
+    state.streak4Fired = false; // reset so that a new 4-streak can trigger again
+    showBanner('lose','❌ 負 '+profit); 
+    try{splay('lose');}catch(e){}
+  }else{
+    showBanner('push','😐 平手 0'); 
+    try{splay('push');}catch(e){}
+  }
+if(state.schemeOn){
+    if(profit>0){ state.stage++; if(state.stage>=state.scheme.length) state.stage=0; }
+    else if(profit<0){ state.stage=0; }
+  }
+
+  }
+
+render();
+</script>
+
+<script>
+// Fireworks FX
+(function(){
+  var cvs = document.getElementById('fx'); if(!cvs) return; var ctx = cvs.getContext('2d');
+  function fit(){ cvs.width=window.innerWidth; cvs.height=window.innerHeight; }
+  window.addEventListener('resize', fit); fit();
+  function burstFull(){
+    var particles=[], N=180, i;
+    for(i=0;i<N;i++){
+      var a=Math.random()*Math.PI*2, v=2+Math.random()*4, r=(Math.random()*0.4+0.3);
+      particles.push({x:cvs.width/2, y:cvs.height*0.45, vx:Math.cos(a)*v, vy:Math.sin(a)*v, life: 60+Math.random()*30, radius:r});
+    }
+    var frame=0; cvs.style.opacity='1';
+    (function tick(){
+      frame++;
+      ctx.globalCompositeOperation='source-over';
+      ctx.fillStyle='rgba(0,0,0,.18)'; ctx.fillRect(0,0,cvs.width,cvs.height);
+      ctx.globalCompositeOperation='lighter';
+      for(var i=0;i<particles.length;i++){
+        var p=particles[i]; p.x+=p.vx; p.y+=p.vy; p.vy+=0.03; p.life--;
+        var hue = ((p.life*7 + frame*2)%360)|0; ctx.fillStyle='hsla('+hue+',100%,60%,.9)';
+        ctx.beginPath(); ctx.arc(p.x,p.y,2.4*p.radius,0,Math.PI*2); ctx.fill();
+      }
+      if(frame<120) requestAnimationFrame(tick); else { cvs.style.opacity='0'; ctx.clearRect(0,0,cvs.width,cvs.height); }
+    })();
+  }
+  window.Fx = { burstFull: burstFull };
+})();
+</script>
+
+
+<script>
+(function(){
+  window.toast = function(msg){
+    try{
+      var d=document.createElement('div'); d.className='toast';
+      d.textContent=msg;
+      d.style.position='fixed'; d.style.left='50%'; d.style.transform='translateX(-50%)';
+      d.style.bottom='max(96px, calc(env(safe-area-inset-bottom) + 96px))';
+      d.style.zIndex='99999'; d.style.background='#000'; d.style.color='#fff';
+      d.style.border='1px solid rgba(255,255,255,.15)'; d.style.padding='10px 14px';
+      d.style.borderRadius='12px'; d.style.boxShadow='0 10px 24px rgba(0,0,0,.45)'; d.style.fontWeight='800';
+      document.body.appendChild(d);
+      setTimeout(function(){ if(d && d.parentNode) d.parentNode.removeChild(d); }, 1400);
+    }catch(e){}
+  }
+})();
+</script>
+
+
+<script>
+(function(){
+  var cvs = document.getElementById('fx'); if(!cvs) return; var ctx = cvs.getContext('2d');
+  function fit(){ cvs.width=innerWidth; cvs.height=innerHeight; }
+  addEventListener('resize', fit); fit();
+  function spark(x,y,hue0){
+    var ps=[], N=220;
+    for(var i=0;i<N;i++){
+      var a=Math.random()*Math.PI*2, sp=(Math.random()*3.5+1.1), r=(Math.random()*1.0+0.4);
+      var hue=(hue0 + Math.random()*50-25 + i*0.5)%360;
+      ps.push({x:x,y:y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life: 70+Math.random()*40,rad:r,h:hue});
+    }
+    return ps;
+  }
+  function prettyBurst(){
+    var W=cvs.width,H=cvs.height;
+    var gs=[ spark(W*0.28,H*0.42,220), spark(W*0.50,H*0.38,40), spark(W*0.72,H*0.46,310) ];
+    var t=0; cvs.style.opacity='1';
+    (function loop(){
+      t++;
+      ctx.globalCompositeOperation='source-over';
+      ctx.fillStyle='rgba(0,0,0,.18)'; ctx.fillRect(0,0,W,H);
+      ctx.globalCompositeOperation='lighter';
+      for(var g=0;g<gs.length;g++){
+        var ps=gs[g];
+        for(var i=0;i<ps.length;i++){
+          var p=ps[i]; p.x+=p.vx; p.y+=p.vy; p.vy+=0.018; p.life--;
+          var a=Math.max(0,Math.min(1,p.life/110));
+          ctx.fillStyle='hsla('+p.h+',100%,'+(60-a*20)+'%,'+(0.9*a)+')';
+          ctx.beginPath(); ctx.arc(p.x,p.y,2.2*p.rad,0,Math.PI*2); ctx.fill();
+        }
+      }
+      if(t<150) requestAnimationFrame(loop); else { cvs.style.opacity='0'; ctx.clearRect(0,0,W,H); }
+    })();
+  }
+  window.Fx = window.Fx || {}; window.Fx.burstFull = function(){
+    var W=cvs.width,H=cvs.height;
+    function spark(x,y,hue0,Nmul){
+      var ps=[], N=Math.floor((Nmul||1)*220);
+      for(var i=0;i<N;i++){
+        var a=Math.random()*Math.PI*2, sp=(Math.random()*3.5+1.1), r=(Math.random()*1.0+0.4);
+        var hue=(hue0 + Math.random()*50-25 + i*0.5)%360;
+        ps.push({x:x,y:y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life: 70+Math.random()*40,rad:r,h:hue});
+      }
+      return ps;
+    }
+    // randomize 3~5 bursts with vertical jitter (0.35~0.6H)
+    var count = 3 + Math.floor(Math.random()*3);
+    var gs=[];
+    for(var k=0;k<count;k++){
+      var x = (0.15 + Math.random()*0.7) * W;
+      var y = (0.35 + Math.random()*0.25) * H;
+      var base = (k===0?220:(Math.random()*360)|0);
+      var mult = 0.9 + Math.random()*0.4;
+      gs.push(spark(x,y,base,mult));
+    }
+    var t=0; cvs.style.opacity='1';
+    (function loop(){
+      t++;
+      ctx.globalCompositeOperation='source-over';
+      ctx.fillStyle='rgba(0,0,0,.18)'; ctx.fillRect(0,0,W,H);
+      ctx.globalCompositeOperation='lighter';
+      for(var g=0;g<gs.length;g++){
+        var ps=gs[g];
+        for(var i=0;i<ps.length;i++){
+          var p=ps[i]; p.x+=p.vx; p.y+=p.vy; p.vy+=0.018; p.life--;
+          var a=Math.max(0,Math.min(1,p.life/110));
+          ctx.fillStyle='hsla('+p.h+',100%,'+(60-a*20)+'%,'+(0.9*a)+')';
+          ctx.beginPath(); ctx.arc(p.x,p.y,2.2*p.rad,0,Math.PI*2); ctx.fill();
+        }
+      }
+      if(t<150) requestAnimationFrame(loop); else { cvs.style.opacity='0'; ctx.clearRect(0,0,W,H); }
+    })();
+  };
+})();
+</script>
+
+
+<!-- Leaderboard JS START -->
+<script>
+// ===================== Leaderboard (Local) — START =====================
+
+// 本機儲存 key
+const LB_KEY = 'bj_leaderboard_v1';
+const NICK_KEY = 'bj_nick_v1';
+
+// 讓整個檔都能用
+window.LEADER = {
+  nick: '',
+  lastSnap: { rounds:0, w:0, l:0, p:0, profit:0 }, // 上次上傳時的累積快照
+};
+
+// --- 進入時強制輸入暱稱（會一直問到有字串為止） ---
+(function ensureNickname(){
+  try {
+    let nick = localStorage.getItem(NICK_KEY) || '';
+    let guard = 0;
+    while((!nick || !nick.trim()) && guard < 5){
+      nick = prompt('請輸入你的暱稱（排行榜將以此顯示）：', '') || '';
+      if(nick) nick = nick.trim().slice(0,20);
+      guard++;
+    }
+    if(!nick){ nick = '玩家' + Math.floor(Math.random()*1000); }
+    localStorage.setItem(NICK_KEY, nick);
+    LEADER.nick = nick;
+  } catch(e){ console.warn(e); }
+})();
+
+// --- 讀/寫排行榜 ---
+function loadBoard(){
+  try{
+    const raw = localStorage.getItem(LB_KEY);
+    return raw ? JSON.parse(raw) : [];
+  }catch(e){ return []; }
+}
+function saveBoard(list){
+  try{ localStorage.setItem(LB_KEY, JSON.stringify(list)); }catch(e){}
+}
+
+// --- 將「這段期間增量」寫入排行榜 ---
+function submitToBoard(){
+  try{
+    const board = loadBoard();
+    const me = LEADER.nick || '玩家';
+
+    // 目前累積（假設全域 state / settle 已存在於原遊戲檔中）
+    const cur = {
+      rounds: (window.state && Number.isFinite(window.state.rounds)) ? window.state.rounds : 0,
+      w: (window.state && Number.isFinite(window.state.wCount)) ? window.state.wCount : 0,
+      l: (window.state && Number.isFinite(window.state.lCount)) ? window.state.lCount : 0,
+      p: (window.state && Number.isFinite(window.state.pCount)) ? window.state.pCount : 0,
+      profit: (window.state && Number.isFinite(window.state.profitSum)) ? window.state.profitSum : 0,
+      bestStreak: (window.state && Number.isFinite(window.state.bestStreak)) ? window.state.bestStreak : 0,
+    };
+
+    // 計算增量
+    const inc = {
+      rounds: cur.rounds - (LEADER.lastSnap.rounds||0),
+      w: cur.w - (LEADER.lastSnap.w||0),
+      l: cur.l - (LEADER.lastSnap.l||0),
+      p: cur.p - (LEADER.lastSnap.p||0),
+      profit: cur.profit - (LEADER.lastSnap.profit||0),
+      bestStreak: cur.bestStreak
+    };
+
+    // 找到或建立玩家
+    let row = board.find(x => x.nick === me);
+    if(!row){
+      row = { nick: me, rounds:0, w:0, l:0, p:0, profit:0, bestStreak:0, updatedAt: Date.now() };
+      board.push(row);
+    }
+    // 合併增量
+    row.rounds += Math.max(0, inc.rounds||0);
+    row.w += Math.max(0, inc.w||0);
+    row.l += Math.max(0, inc.l||0);
+    row.p += Math.max(0, inc.p||0);
+    row.profit += (inc.profit||0);
+    row.bestStreak = Math.max(row.bestStreak||0, cur.bestStreak||0);
+    row.updatedAt = Date.now();
+
+    // 排序：盈虧 > 勝率 > 局數
+    board.sort((a,b)=>{
+      const pa = a.profit||0, pb = b.profit||0;
+      if(pb !== pa) return pb - pa;
+      const wrA = (a.rounds? (a.w / a.rounds) : 0);
+      const wrB = (b.rounds? (b.w / b.rounds) : 0);
+      if(wrB !== wrA) return wrB - wrA;
+      return (b.rounds - a.rounds);
+    });
+
+    saveBoard(board);
+
+    // 更新快照
+    LEADER.lastSnap = { ...cur };
+
+    // 重新渲染排行榜
+    renderBoard();
+    try{ if(typeof toast === 'function') toast('已更新排行榜'); }catch(e){}
+  }catch(e){ console.warn('submitToBoard fail', e); }
+}
+
+// --- 觸發規則：每 5 局或籌碼歸 0 時自動上傳 ---
+function maybeSubmitBoardByRule(){
+  try{
+    const rounds = (window.state && Number.isFinite(window.state.rounds)) ? window.state.rounds : 0;
+    const chips = (window.state && Number.isFinite(window.state.chips)) ? window.state.chips : 0;
+    const five = (rounds > 0 && rounds % 5 === 0);
+    const broke = (chips <= 0);
+    if(five || broke){ submitToBoard(); }
+  }catch(e){}
+}
+
+// --- 排行榜渲染 ---
+function renderBoard(){
+  const box = document.getElementById('leaderList');
+  if(!box) return;
+  const board = loadBoard();
+  const top = board.slice(0,10);
+  const rows = top.map((r, i)=>{
+    const wr = (r.rounds? (r.w / r.rounds * 100): 0).toFixed(1) + '%';
+    const updated = new Date(r.updatedAt||Date.now()).toLocaleString();
+    return `
+      <div class="rankItem">
+        <div>
+          <div class="name">#${i+1} ${r.nick}</div>
+          <div class="nums">
+            <span class="badge">盈虧：${(r.profit||0)>=0?'+':''}${r.profit||0}</span>
+            <span class="badge">勝率：${wr}</span>
+            <span class="badge">局數：${r.rounds||0}</span>
+            <span class="badge">最長連勝：${r.bestStreak||0}</span>
+          </div>
+        </div>
+        <small style="opacity:.6">${updated}</small>
+      </div>
+    `;
+  }).join('') || '<div style="opacity:.7">目前沒有資料，玩幾局看看吧！</div>';
+
+  box.innerHTML = rows;
+}
+
+// --- 啟動時初始化一次排行榜畫面 & 快照 ---
+(function initBoard(){
+  // 用當前值當作第一次快照，避免剛載入就把全部累計算一次
+  const s = window.state || {};
+  LEADER.lastSnap = {
+    rounds: s.rounds||0,
+    w: s.wCount||0,
+    l: s.lCount||0,
+    p: s.pCount||0,
+    profit: s.profitSum||0
+  };
+  renderBoard();
+})();
+
+// 我們要在每局「結算 settle()」後檢查是否要上傳
+// 若原本的 settle 存在，包裝；若不存在，嘗試掛在全域事件上（給未命名專案降風險）
+(function hookSettle(){
+  if (typeof window.settle === 'function'){
+    const _settle = window.settle;
+    window.settle = function(){
+      const ret = _settle.apply(this, arguments);
+      try{ maybeSubmitBoardByRule(); }catch(e){}
+      return ret;
+    };
+  }else{
+    // 若沒有 settle，可選擇在每次「回合結束」時手動呼叫 maybeSubmitBoardByRule()
+    // 這裡先不強制，避免未知專案報錯。
+  }
+})();
+
+// ===================== Leaderboard (Local) — END =====================
+</script>
+<!-- Leaderboard JS END -->
+
+<div id="dbgMsg" style="position:fixed;right:16px;bottom:62px;z-index:99999;padding:8px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.25);background:rgba(0,0,0,.5);color:#fff;font-size:12px;max-width:50vw;backdrop-filter:blur(6px);display:none"></div>
+<div id="dbgBtn" style="position:fixed;right:16px;bottom:16px;z-index:99999;padding:10px 14px;border-radius:999px;border:1px solid rgba(255,255,255,.3);background:rgba(0,0,0,.55);color:#fff;font-weight:800;backdrop-filter:blur(6px);cursor:pointer">☁ 測試上傳</div>
+
+<!-- Firebase Guarded Cloud Layer -->
+<script type="module">
+  import { initializeApp, getApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
+  import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
+  import { getFirestore, doc, setDoc, serverTimestamp, collection, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+
+  // === Your Firebase project ===
+  const firebaseConfig = {
+    apiKey: "AIzaSyC2TTwCb177fuQTIIk_7AE5xVJ2JBbdZzk",
+    authDomain: "hanksbj21.firebaseapp.com",
+    projectId: "hanksbj21",
+    storageBucket: "hanksbj21.firebasestorage.app",
+    messagingSenderId: "560462250997",
+    appId: "1:560462250997:web:574f0cca89b58c0d2856bc",
+    measurementId: "G-T2YY5WVEBS"
+  };
+
+  // === Guarded init / reuse (prevents app/app-deleted & double init) ===
+  function ensureApp(){
+    try{
+      const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+      if(!window.__FIRE_APP__) window.__FIRE_APP__ = app;
+      if(!window.__FIRE_AUTH__) window.__FIRE_AUTH__ = getAuth(app);
+      if(!window.__FIRE_DB__) window.__FIRE_DB__ = getFirestore(app);
+      return app;
+    }catch(e){
+      console.warn("[FIRE] ensureApp failed, retrying fresh", e);
+      const app = initializeApp(firebaseConfig);
+      window.__FIRE_APP__ = app;
+      window.__FIRE_AUTH__ = getAuth(app);
+      window.__FIRE_DB__ = getFirestore(app);
+      return app;
+    }
+  }
+
+  async function ensureAuth(){
+    const auth = window.__FIRE_AUTH__ || getAuth(window.__FIRE_APP__ || ensureApp());
+    if(!auth.currentUser){
+      try{ await signInAnonymously(auth); }catch(e){ /* ignore */ }
+    }
+    await new Promise(r => onAuthStateChanged(auth, u => u && r()));
+    return auth;
+  }
+
+  function idFromNick(nick){
+    return String(nick||"player").trim().toLowerCase().replace(/[^a-z0-9_-]+/g,"-").slice(0,40) || "player";
+  }
+
+  async function submitToCloudGuarded(){
+    try{
+      ensureApp(); await ensureAuth();
+      const db = window.__FIRE_DB__;
+      const s = window.state || {};
+      const cur = {
+        rounds: s.rounds||0, w: s.wCount||0, l: s.lCount||0, p: s.pCount||0,
+        profit: s.profitSum||0, bestStreak: s.bestStreak||0
+      };
+      const winRate = cur.rounds ? (cur.w/cur.rounds) : 0;
+      const nick = (window.LEADER?.nick) || "玩家";
+      const ref = doc(db, "leaderboard", idFromNick(nick));
+      await setDoc(ref, { nick, ...cur, winRate, updatedAt: serverTimestamp() }, { merge: true });
+      msg("✅ 雲端寫入成功");
+      console.log("[FIRE] write ok");
+    }catch(e){
+      msg("❌ 雲端寫入失敗：" + (e?.message||e));
+      console.error("[FIRE] write failed", e);
+      if(String(e?.code||"").includes("app-deleted")){
+        console.warn("[FIRE] app-deleted detected, re-init and retry once");
+        try{ ensureApp(); await submitToCloudGuarded(); }catch(e2){ console.error("[FIRE] retry failed", e2); }
+      }
+    }
+  }
+
+  function startLeaderboardGuarded(){
+    try{
+      ensureApp();
+      const db = window.__FIRE_DB__;
+      const q = query(collection(db,"leaderboard"), orderBy("profit","desc"), limit(10));
+      onSnapshot(q, (snap) => {
+        const list = []; snap.forEach(d => list.push(d.data()));
+        const box = document.getElementById("leaderList"); if(!box) return;
+        const rows = list.map((r,i)=>{
+          const wr = (r.rounds? (r.w/r.rounds*100): 0).toFixed(1) + "%";
+          const updated = r.updatedAt?.toDate ? r.updatedAt.toDate().toLocaleString() : "";
+          return `
+            <div class="rankItem">
+              <div>
+                <div class="name">#${i+1} ${r.nick||"玩家"}</div>
+                <div class="nums">
+                  <span class="badge">盈虧：${(r.profit||0)>=0?"+":""}${r.profit||0}</span>
+                  <span class="badge">勝率：${wr}</span>
+                  <span class="badge">局數：${r.rounds||0}</span>
+                  <span class="badge">最長連勝：${r.bestStreak||0}</span>
+                </div>
+              </div>
+              <small style="opacity:.6">${updated}</small>
+            </div>
+          `;
+        }).join("") || '<div style="opacity:.7">目前沒有資料，玩幾局看看吧！</div>';
+        box.innerHTML = rows;
+        const hint = document.getElementById("leaderHint");
+        if(hint) hint.textContent = "（雲端已連線，即時更新）";
+      });
+    }catch(e){
+      msg("❌ 排行榜監聽失敗：" + (e?.message||e));
+      console.error("[FIRE] startLeaderboard failed", e);
+      if(String(e?.code||"").includes("app-deleted")){
+        ensureApp();
+        startLeaderboardGuarded();
+      }
+    }
+  }
+
+  // Simple toast
+  function msg(t){
+    const m = document.getElementById("dbgMsg");
+    if(!m) return;
+    m.textContent = t;
+    m.style.display = "block";
+    setTimeout(()=>{ m.style.display = "none"; }, 4000);
+  }
+
+  // Wire up dual-write: keep original submitToBoard (local) + cloud
+  (function wire(){
+    ensureApp();
+    const oldSubmit = window.submitToBoard;
+    window.submitToBoard = async function(){
+      try{ oldSubmit && oldSubmit(); }catch(e){ /* local may throw */ }
+      await submitToCloudGuarded();
+    };
+    startLeaderboardGuarded();
+    document.getElementById("dbgBtn")?.addEventListener("click", submitToCloudGuarded);
+  })();
+</script>
+</body>
+</html>
