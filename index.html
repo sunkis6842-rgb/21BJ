@@ -154,7 +154,7 @@
 #leaderPanel .badge{font-weight:800;padding:3px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);font-size:12px}
 </style>
 
-<style id="leaderboard-pretty">
+
 #leaderPanel{border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:12px;background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.03));box-shadow:0 8px 24px rgba(0,0,0,.25);margin-top:10px}
 #leaderList{display:flex;flex-direction:column;gap:8px}
 #leaderPanel .rankItem{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border-radius:14px;background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.12);box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 4px 12px rgba(0,0,0,.18)}
@@ -906,8 +906,7 @@ function submitToBoard(){
 
     // 重新渲染排行榜
     renderBoard();
-    try{ if(typeof toast === 'function') toast('已更新排行榜'); }catch(e){}
-  }catch(e){ console.warn('submitToBoard fail', e); }
+}catch(e){ console.warn('submitToBoard fail', e); }
 }
 
 // --- 觸發規則：每 5 局或籌碼歸 0 時自動上傳 ---
@@ -970,16 +969,13 @@ function renderBoard(){
     const _settle = window.settle;
     window.settle = function(){
       const ret = _settle.apply(this, arguments);
-      try{ maybeSubmitBoardByRule(); }catch(e){}
+      try{ if(typeof submitToBoard==='function') submitToBoard(); else if(typeof maybeSubmitBoardByRule==='function') maybeSubmitBoardByRule(); }catch(e){}
       return ret;
     };
   }else{
-    // 若沒有 settle，可選擇在每次「回合結束」時手動呼叫 maybeSubmitBoardByRule()
-    // 這裡先不強制，避免未知專案報錯。
+    // no-op: if settle isn't defined yet, later definitions won't be wrapped by this block
   }
-})();
-
-// ===================== Leaderboard (Local) — END =====================
+})();// ===================== Leaderboard (Local) — END =====================
 </script>
 <!-- Leaderboard JS END -->
 
