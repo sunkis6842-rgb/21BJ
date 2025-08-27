@@ -183,6 +183,165 @@
 .lb-pill{font-weight:800;padding:4px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.08);font-size:12px;white-space:nowrap}
 .lb-empty{opacity:.7;padding:8px}
 </style>
+
+<style id="lb-id-style">
+.lb-id{
+  font-weight:900;
+  white-space:normal; overflow:hidden;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+  word-break:break-word; max-width:60vw; margin:0; padding:0;
+}
+@media (max-width: 480px){
+  .lb-id{ max-width:100% }
+}
+</style>
+
+<style id="lb-oneline">
+/* Nickname next to medal: single line, ellipsis */
+.lb-id{
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 60vw;
+  font-weight: 900;
+  margin: 0; padding: 0;
+}
+/* Local list item name single-line as well */
+#leaderPanel .rankItem .name{
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (max-width: 480px){
+  .lb-id{ max-width: 100%; }
+}
+</style>
+
+
+
+<style id="lb-fullname-override">
+/* Show full nickname: wrap to multiple lines, no ellipsis */
+.lb-id, .lb-name, #leaderPanel .rankItem .name{
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: initial !important;
+  display: block;
+  word-break: break-word;
+  max-width: 60vw;
+  font-weight: 900;
+}
+@media (max-width: 480px){
+  .lb-id, .lb-name, #leaderPanel .rankItem .name{ max-width: 100%; }
+  .lb-item{ flex-direction: column; align-items: flex-start; gap: 10px; }
+  .lb-stats{ justify-content: flex-start; flex-wrap: wrap; gap: 6px; }
+  .lb-pill{ font-size: 11px; padding: 3px 8px; }
+}
+@media (max-width: 360px){
+  .lb-pill{ font-size: 10px; padding: 2px 6px; }
+}
+</style>
+
+<style id="lb-name-oneline-nice">
+/* Name: single line + ellipsis, let it shrink within flex */
+.lb-left{display:flex;align-items:center;gap:10px;min-width:0}
+.lb-id,.lb-name,#leaderPanel .rankItem .name{
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  display:block;
+  font-weight:900;
+  min-width:0;            /* critical for flex-ellipsis */
+  flex:1 1 auto;          /* take remaining space but allow shrink */
+}
+
+/* Desktop keeps one row look; pills on the right */
+.lb-stats{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+
+/* Mobile: stack below, keep name full width single line */
+@media (max-width: 480px){
+  .lb-item{flex-direction:column;align-items:flex-start;gap:10px}
+  .lb-left{width:100%;gap:10px;min-width:0}
+  .lb-id,.lb-name,#leaderPanel .rankItem .name{max-width:100%}
+  .lb-stats{justify-content:flex-start}
+  .lb-pill{font-size:11px;padding:3px 8px}
+}
+@media (max-width: 360px){
+  .lb-pill{font-size:10px;padding:2px 6px}
+}
+</style>
+
+<style id="lb-name-scroll">
+/* Single-line full name with horizontal scroll (no ellipsis) */
+.lb-left{display:flex;align-items:center;gap:10px;min-width:0}
+.lb-id,.lb-name,#leaderPanel .rankItem .name{
+  white-space: nowrap !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  text-overflow: clip !important;  /* remove ellipsis */
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;           /* Firefox */
+  -ms-overflow-style: none;        /* IE/Edge */
+  max-width: 60vw;
+  font-weight: 900;
+  min-width: 0;
+}
+.lb-id::-webkit-scrollbar,
+.lb-name::-webkit-scrollbar,
+#leaderPanel .rankItem .name::-webkit-scrollbar{ display: none; }
+
+@media (max-width: 480px){
+  .lb-item{flex-direction:column;align-items:flex-start;gap:10px}
+  .lb-left{width:100%;min-width:0}
+  .lb-id,.lb-name,#leaderPanel .rankItem .name{ max-width: 100%; }
+  .lb-stats{justify-content:flex-start;flex-wrap:wrap;gap:6px}
+  .lb-pill{font-size:11px;padding:3px 8px}
+}
+@media (max-width: 360px){
+  .lb-pill{font-size:10px;padding:2px 6px}
+}
+</style>
+
+<style id="lb-two-line">
+/* Two-line layout: header (medal+name) on first line, stats pills on second line */
+#leaderList{display:flex;flex-direction:column;gap:10px}
+.lb-item{
+  display:flex;flex-direction:column;align-items:flex-start;gap:8px;
+  padding:12px 14px;border-radius:16px;
+  background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.03));
+  border:1px solid rgba(255,255,255,.12);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 6px 18px rgba(0,0,0,.22);
+}
+.lb-head{display:flex;align-items:center;gap:10px;min-width:0;width:100%}
+.lb-medal{width:28px;height:28px;border-radius:999px;display:grid;place-items:center;font-weight:900;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.1)}
+.lb-medal.g{background:linear-gradient(135deg,#f7d774,#facc15);color:#3b2f00;border-color:#f59e0b}
+.lb-medal.s{background:linear-gradient(135deg,#e5e7eb,#d1d5db);color:#111827;border-color:#9ca3af}
+.lb-medal.b{background:linear-gradient(135deg,#f1c0a0,#d97706);color:#3f1d0b;border-color:#b45309}
+
+/* Full nickname, single line, NO ellipsis, horizontally scrollable if needed */
+.lb-name{
+  font-weight:900;
+  white-space:nowrap; overflow-x:auto; overflow-y:hidden; text-overflow:clip;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:none; -ms-overflow-style:none;
+  flex:1 1 auto; min-width:0;
+}
+.lb-name::-webkit-scrollbar{display:none}
+
+/* Pills on the second line */
+.lb-stats{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-start}
+.lb-pill{font-weight:800;padding:4px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.08);font-size:12px;white-space:nowrap}
+
+@media (min-width: 820px){
+  .lb-item{padding:14px 16px}
+  .lb-pill{font-size:13px}
+}
+@media (max-width: 480px){
+  .lb-pill{font-size:11px;padding:3px 8px}
+}
+@media (max-width: 360px){
+  .lb-pill{font-size:10px;padding:2px 6px}
+}
+</style>
 </head>
 <body>
 <canvas id="fx"></canvas>
@@ -894,7 +1053,7 @@ function submitToBoard(){
 
     // 重新渲染排行榜
     renderBoard();
-    try{ if(typeof toast === 'function') toast('已更新排行榜'); }catch(e){}
+}catch(e){}
   }catch(e){ console.warn('submitToBoard fail', e); }
 }
 
@@ -915,26 +1074,29 @@ function renderBoard(){
   if(!box) return;
   const board = loadBoard();
   const top = board.slice(0,10);
-  const rows = top.map((r, i)=>{
-    const wr = (r.rounds? (r.w / r.rounds * 100): 0).toFixed(1) + '%';
-    const updated = new Date(r.updatedAt||Date.now()).toLocaleString();
-    return `
-      <div class="rankItem">
-        <div>
-          <div class="name">#${i+1} ${r.nick}</div>
-          <div class="nums">
-            <span class="badge">盈虧：${(r.profit||0)>=0?'+':''}${r.profit||0}</span>
-            <span class="badge">勝率：${wr}</span>
-            <span class="badge">局數：${r.rounds||0}</span>
-            <span class="badge">最長連勝：${r.bestStreak||0}</span>
-          </div>
-        </div>
-        <small style="opacity:.6">${updated}</small>
+  
+const rows = top.map((r, i)=>{
+  const rank = i+1;
+  const medal = rank===1?'g':(rank===2?'s':(rank===3?'b':''));
+  const tag = medal ? `<div class="lb-medal ${medal}">${rank}</div>` : `<div class="lb-medal">${rank}</div>`;
+  const wr = (r.rounds? (r.w/r.rounds*100) : 0).toFixed(1) + '%';
+  return `
+    <div class="lb-item">
+      <div class="lb-head">
+        ${tag}
+        <div class="lb-name">${r.nick||'玩家'}</div>
       </div>
-    `;
-  }).join('') || '<div style="opacity:.7">目前沒有資料，玩幾局看看吧！</div>';
+      <div class="lb-stats">
+        <div class="lb-pill">盈虧：${(r.profit||0)>=0?'+':''}${r.profit||0}</div>
+        <div class="lb-pill">勝率：${wr}</div>
+        <div class="lb-pill">局數：${r.rounds||0}</div>
+        <div class="lb-pill">連勝：${r.bestStreak||0}</div>
+      </div>
+    </div>
+  `;
+}).join('') || '<div class="lb-empty">目前沒有資料，玩幾局看看吧！</div>';
+box.innerHTML = rows;
 
-  box.innerHTML = rows;
 }
 
 // --- 啟動時初始化一次排行榜畫面 & 快照 ---
@@ -1071,18 +1233,17 @@ function renderBoard(){
   const box = document.getElementById("leaderList");
   if(!box) return;
   
+
 const rows = list.map((r,i)=>{
   const rank = i+1;
   const medal = rank===1?'g':(rank===2?'s':(rank===3?'b':''));
   const tag = medal ? `<div class="lb-medal ${medal}">${rank}</div>` : `<div class="lb-medal">${rank}</div>`;
   const name = (r.nick||'玩家');
-  const initials = String(name).trim().slice(0,2) || '玩家';
   const wr = ((r.winRatePct!=null?r.winRatePct:(r.rounds? (r.w/r.rounds*100):0))).toFixed(1) + '%';
   return `
     <div class="lb-item">
-      <div class="lb-left">
+      <div class="lb-head">
         ${tag}
-        <div class="lb-avatar">${initials}</div>
         <div class="lb-name">${name}</div>
       </div>
       <div class="lb-stats">
@@ -1095,6 +1256,7 @@ const rows = list.map((r,i)=>{
   `;
 }).join("") || '<div class="lb-empty">目前沒有資料，玩幾局看看吧！</div>';
 box.innerHTML = rows;
+
 
 });
   }
@@ -1221,18 +1383,17 @@ box.innerHTML = rows;
   const box = document.getElementById("leaderList");
   if(!box) return;
   
+
 const rows = list.map((r,i)=>{
   const rank = i+1;
   const medal = rank===1?'g':(rank===2?'s':(rank===3?'b':''));
   const tag = medal ? `<div class="lb-medal ${medal}">${rank}</div>` : `<div class="lb-medal">${rank}</div>`;
   const name = (r.nick||'玩家');
-  const initials = String(name).trim().slice(0,2) || '玩家';
   const wr = ((r.winRatePct!=null?r.winRatePct:(r.rounds? (r.w/r.rounds*100):0))).toFixed(1) + '%';
   return `
     <div class="lb-item">
-      <div class="lb-left">
+      <div class="lb-head">
         ${tag}
-        <div class="lb-avatar">${initials}</div>
         <div class="lb-name">${name}</div>
       </div>
       <div class="lb-stats">
@@ -1245,6 +1406,7 @@ const rows = list.map((r,i)=>{
   `;
 }).join("") || '<div class="lb-empty">目前沒有資料，玩幾局看看吧！</div>';
 box.innerHTML = rows;
+
 
 });
   }
@@ -1336,18 +1498,17 @@ box.innerHTML = rows;
       const box = document.getElementById("leaderList");
       if(!box) return;
       
+
 const rows = list.map((r,i)=>{
   const rank = i+1;
   const medal = rank===1?'g':(rank===2?'s':(rank===3?'b':''));
   const tag = medal ? `<div class="lb-medal ${medal}">${rank}</div>` : `<div class="lb-medal">${rank}</div>`;
   const name = (r.nick||'玩家');
-  const initials = String(name).trim().slice(0,2) || '玩家';
   const wr = ((r.winRatePct!=null?r.winRatePct:(r.rounds? (r.w/r.rounds*100):0))).toFixed(1) + '%';
   return `
     <div class="lb-item">
-      <div class="lb-left">
+      <div class="lb-head">
         ${tag}
-        <div class="lb-avatar">${initials}</div>
         <div class="lb-name">${name}</div>
       </div>
       <div class="lb-stats">
@@ -1360,6 +1521,7 @@ const rows = list.map((r,i)=>{
   `;
 }).join("") || '<div class="lb-empty">目前沒有資料，玩幾局看看吧！</div>';
 box.innerHTML = rows;
+
 
     }catch(e){
       // ignore
