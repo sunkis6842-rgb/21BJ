@@ -153,6 +153,15 @@
 #leaderPanel .nums{display:flex;gap:8px;flex-wrap:wrap}
 #leaderPanel .badge{font-weight:800;padding:3px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);font-size:12px}
 </style>
+
+<style id="leaderboard-pretty">
+#leaderPanel{border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:12px;background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.03));box-shadow:0 8px 24px rgba(0,0,0,.25);margin-top:10px}
+#leaderList{display:flex;flex-direction:column;gap:8px}
+#leaderPanel .rankItem{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border-radius:14px;background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.12);box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 4px 12px rgba(0,0,0,.18)}
+#leaderPanel .name{font-weight:900;font-size:14px;display:flex;align-items:center;gap:8px}
+#leaderPanel .nums{display:flex;gap:8px;flex-wrap:wrap}
+#leaderPanel .badge{font-weight:800;padding:3px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);font-size:12px}
+</style>
 </head>
 <body>
 <canvas id="fx"></canvas>
@@ -983,11 +992,8 @@ function renderBoard(){
   }
 
   function idFromNick(nick){
-  let s = String(nick||'').trim();
-  s = s.replace(/[\/]/g, '-'); // Firestore docId cannot contain '/'
-  if(!s) s = '玩家';
-  return s.slice(0, 60);
-}
+    return String(nick||"player").trim().toLowerCase().replace(/[^a-z0-9_-]+/g,"-").slice(0,40) || "player";
+  }
 
   async function submitToCloudGuarded(){
     const db = window.__FIRE_DB__;
@@ -1061,12 +1067,11 @@ function renderBoard(){
 </script>
 
 <script type="module">
-  // --- Robust per-round cloud sync ---
   import { initializeApp, getApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
   import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
-  import { getFirestore, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+  import { getFirestore, doc, setDoc, serverTimestamp, collection, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 
-  const _cfg = {
+  const firebaseConfig = {
     apiKey: "AIzaSyC2TTwCb177fuQTIIk_7AE5xVJ2JBbdZzk",
     authDomain: "hanksbj21.firebaseapp.com",
     projectId: "hanksbj21",
@@ -1076,8 +1081,16 @@ function renderBoard(){
     measurementId: "G-T2YY5WVEBS"
   };
 
+  // Unicode-safe docId (only replace '/')
+  function idFromNick(nick){
+    let s = String(nick||'').trim();
+    s = s.replace(/[\/]/g, '-');
+    if(!s) s = '玩家';
+    return s.slice(0, 60);
+  }
+
   function ensureApp(){
-    const app = getApps().length ? getApp() : initializeApp(_cfg);
+    const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
     if(!window.__FIRE_APP__) window.__FIRE_APP__ = app;
     if(!window.__FIRE_AUTH__) window.__FIRE_AUTH__ = getAuth(app);
     if(!window.__FIRE_DB__) window.__FIRE_DB__ = getFirestore(app);
@@ -1092,7 +1105,7 @@ function renderBoard(){
     return auth;
   }
 
-  async function cloudSubmitFallback(){
+  async function submitToCloudGuarded(){
     await ensureAuth();
     const db = window.__FIRE_DB__ || getFirestore(ensureApp());
     const s = window.state || {};
@@ -1102,56 +1115,75 @@ function renderBoard(){
     };
     const winRate = cur.rounds ? (cur.w/cur.rounds) : 0;
     const nick = (window.LEADER && window.LEADER.nick) || '玩家';
-    const ref = doc(db, "leaderboard", (window.idFromNick?window.idFromNick(nick):nick));
+    const ref = doc(db, "leaderboard", idFromNick(nick));
     await setDoc(ref, { nick, ...cur, winRate, updatedAt: serverTimestamp() }, { merge: true });
-    console.log("[CLOUD] per-round write ok");
   }
 
-  // Wrap submitToBoard to always include a cloud write (using existing cloud fn if present)
-  (function wrapSubmitCloud(){
+  function startLeaderboard(){
+    const db = window.__FIRE_DB__ || getFirestore(ensureApp());
+    const q = query(collection(db, "leaderboard"), orderBy("profit", "desc"), limit(10));
+    onSnapshot(q, (snap) => {
+      const list = []; snap.forEach(d => list.push(d.data()));
+      const box = document.getElementById("leaderList");
+      if(!box) return;
+      const rows = list.map((r,i)=>{
+        const wr = (r.rounds? (r.w/r.rounds*100): 0).toFixed(1) + "%";
+        return `
+          <div class="rankItem">
+            <div class="name">#${i+1} ${r.nick||"玩家"}</div>
+            <div class="nums">
+              <span class="badge">盈虧：${(r.profit||0)>=0?"+":""}${r.profit||0}</span>
+              <span class="badge">勝率：${wr}</span>
+              <span class="badge">局數：${r.rounds||0}</span>
+              <span class="badge">最長連勝：${r.bestStreak||0}</span>
+            </div>
+          </div>
+        `;
+      }).join("") || '<div style="opacity:.7">目前沒有資料，玩幾局看看吧！</div>';
+      box.innerHTML = rows;
+      const hint = document.getElementById("leaderHint"); if(hint) hint.textContent = "即時排行榜（雲端）";
+    });
+  }
+
+  // Hook submitToBoard to always include cloud write
+  (function hookSubmit(){
     const oldSubmit = window.submitToBoard;
     window.submitToBoard = async function(){
       try{ oldSubmit && oldSubmit(); }catch(e){}
-      const fn = window.submitToCloudGuarded || window.submitToCloud || cloudSubmitFallback;
-      try{ await fn(); }catch(e){ console.warn("cloud write failed", e); }
+      try{ await submitToCloudGuarded(); }catch(e){ console.warn("cloud write failed", e); }
     };
   })();
 
-  // Ensure settle() triggers submitToBoard every round, even if defined late
-  (function forcePerRoundSync(){
+  // Force per-round sync even if settle is assigned later
+  (function wrapSettleLateProof(){
     function wrapOnce(){
-      const s = window.settle;
-      if(typeof s === 'function' && !s.__cloudWrapped__){
-        const original = s;
+      const fn = window.settle;
+      if(typeof fn === 'function' && !fn.__cloudWrapped__){
+        const orig = fn;
         const wrapped = function(...args){
-          const ret = original.apply(this, args);
+          const ret = orig.apply(this, args);
           try{ if(typeof window.submitToBoard==='function'){ window.submitToBoard(); } }catch(e){}
           return ret;
         };
         wrapped.__cloudWrapped__ = true;
         window.settle = wrapped;
-        console.log("[CLOUD] settle wrapped for per-round sync");
+        console.log("[CLOUD] settle wrapped");
       }
     }
-    // run now, on load, and a short poll to catch late assignments
     wrapOnce();
     window.addEventListener('load', wrapOnce);
     let tries = 0;
-    const timer = setInterval(()=>{
-      wrapOnce(); tries++;
-      if(tries>20) clearInterval(timer);
-    }, 300);
+    const timer = setInterval(()=>{ wrapOnce(); if(++tries>20) clearInterval(timer); }, 300);
   })();
 
-  // Initial sync on first load
-  (async function initialSync(){
-    try{
-      await ensureAuth();
-      await (window.submitToCloudGuarded ? window.submitToCloudGuarded() : cloudSubmitFallback());
-    }catch(e){}
+  // Initial sync + start listener
+  (async function initCloud(){
+    try{ await ensureAuth(); }catch(e){}
+    try{ await submitToCloudGuarded(); }catch(e){}
+    try{ startLeaderboard(); }catch(e){ console.warn("listener failed", e); }
   })();
 
-  // Flush on page hide/unload (mobile-safe)
+  // Flush on page hide/unload
   (function flushOnHide(){
     async function flush(){
       try{ if(typeof window.submitToBoard==='function'){ await window.submitToBoard(); } }catch(e){}
