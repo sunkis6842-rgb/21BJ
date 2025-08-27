@@ -992,8 +992,19 @@ function renderBoard(){
   }
 
   function idFromNick(nick){
-    return String(nick||"player").trim().toLowerCase().replace(/[^a-z0-9_-]+/g,"-").slice(0,40) || "player";
-  }
+  // Normalize for cross-device unification:
+  // - trim, collapse whitespace, remove zero-width chars
+  // - replace '/' with '-'
+  // - lowercase (Latin only; CJK/emoji unaffected)
+  // - limit to 60 chars
+  let s = String(nick||'').trim();
+  s = s.replace(/[\u200B-\u200D\uFEFF]/g, '');
+  s = s.replace(/\s+/g, ' ');
+  s = s.replace(/[\/]/g, '-');
+  s = s.toLowerCase();
+  if(!s) s = '玩家';
+  return s.slice(0, 60);
+}
 
   async function submitToCloudGuarded(){
     const db = window.__FIRE_DB__;
@@ -1012,28 +1023,49 @@ function renderBoard(){
     const db = window.__FIRE_DB__;
     const q = query(collection(db,"leaderboard"), orderBy("profit","desc"), limit(10));
     onSnapshot(q, (snap) => {
-      const list = []; snap.forEach(d => list.push(d.data()));
-      const box = document.getElementById("leaderList"); if(!box) return;
-      const rows = list.map((r,i)=>{
-        const rank = i+1;
-        const wr = (r.rounds? (r.w/r.rounds*100): 0).toFixed(1) + "%";
-        const updated = r.updatedAt?.toDate ? r.updatedAt.toDate().toLocaleString() : "";
-        const medal = rank===1?'<span class="medal g">1</span>':(rank===2?'<span class="medal s">2</span>':(rank===3?'<span class="medal b">3</span>':''));
-        return `
-          <div class="rankItem">
-            <div class="name">${medal} #${rank} ${r.nick||"玩家"}</div>
-            <div class="nums">
-              <span class="badge">盈虧：${(r.profit||0)>=0?"+":""}${r.profit||0}</span>
-              <span class="badge">勝率：${wr}</span>
-              <span class="badge">局數：${r.rounds||0}</span>
-              <span class="badge">最長連勝：${r.bestStreak||0}</span>
-            </div>
-          </div>
-        `;
-      }).join("") || '<div style="opacity:.7">目前沒有資料，玩幾局看看吧！</div>';
-      box.innerHTML = rows;
-      const hint = document.getElementById("leaderHint"); if(hint) hint.textContent = "即時排行榜（雲端）";
-    });
+  const map = new Map();
+  snap.forEach(d => {
+    const r = d.data() || {};
+    const key = idFromNick(r.nick || '');
+    const cur = map.get(key) || { nick: r.nick || key, rounds:0, w:0, l:0, p:0, profit:0, bestStreak:0, updatedAt:null };
+    cur.rounds += r.rounds || 0;
+    cur.w      += r.w || 0;
+    cur.l      += r.l || 0;
+    cur.p      += r.p || 0;
+    cur.profit += r.profit || 0;
+    cur.bestStreak = Math.max(cur.bestStreak||0, r.bestStreak||0);
+    try{
+      const ts = r.updatedAt?.toDate ? r.updatedAt.toDate() : null;
+      if(ts && (!cur.updatedAt || ts > cur.updatedAt)){
+        cur.updatedAt = ts; cur.nick = r.nick || cur.nick;
+      }
+    }catch(e){}
+    map.set(key, cur);
+  });
+  const list = Array.from(map.values()).map(x => {
+    const wr = (x.rounds ? (x.w / x.rounds * 100) : 0);
+    return { ...x, winRatePct: wr };
+  }).sort((a,b)=> (b.profit||0)-(a.profit||0) || (b.rounds||0)-(a.rounds||0)).slice(0,10);
+
+  const box = document.getElementById("leaderList");
+  if(!box) return;
+  const rows = list.map((r,i)=>{
+    const wr = r.winRatePct.toFixed(1) + "%";
+    return `
+      <div class="rankItem">
+        <div class="name">#${i+1} ${r.nick||"玩家"}</div>
+        <div class="nums">
+          <span class="badge">盈虧：${(r.profit||0)>=0?"+":""}${r.profit||0}</span>
+          <span class="badge">勝率：${wr}</span>
+          <span class="badge">局數：${r.rounds||0}</span>
+          <span class="badge">最長連勝：${r.bestStreak||0}</span>
+        </div>
+      </div>
+    `;
+  }).join("") || '<div style="opacity:.7">目前沒有資料，玩幾局看看吧！</div>';
+  box.innerHTML = rows;
+  const hint = document.getElementById("leaderHint"); if(hint) hint.textContent = "統一排行榜（跨裝置）";
+});
   }
 
   // Wire dual-write and initial upload
@@ -1083,11 +1115,19 @@ function renderBoard(){
 
   // Unicode-safe docId (only replace '/')
   function idFromNick(nick){
-    let s = String(nick||'').trim();
-    s = s.replace(/[\/]/g, '-');
-    if(!s) s = '玩家';
-    return s.slice(0, 60);
-  }
+  // Normalize for cross-device unification:
+  // - trim, collapse whitespace, remove zero-width chars
+  // - replace '/' with '-'
+  // - lowercase (Latin only; CJK/emoji unaffected)
+  // - limit to 60 chars
+  let s = String(nick||'').trim();
+  s = s.replace(/[\u200B-\u200D\uFEFF]/g, '');
+  s = s.replace(/\s+/g, ' ');
+  s = s.replace(/[\/]/g, '-');
+  s = s.toLowerCase();
+  if(!s) s = '玩家';
+  return s.slice(0, 60);
+}
 
   function ensureApp(){
     const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
@@ -1123,26 +1163,49 @@ function renderBoard(){
     const db = window.__FIRE_DB__ || getFirestore(ensureApp());
     const q = query(collection(db, "leaderboard"), orderBy("profit", "desc"), limit(10));
     onSnapshot(q, (snap) => {
-      const list = []; snap.forEach(d => list.push(d.data()));
-      const box = document.getElementById("leaderList");
-      if(!box) return;
-      const rows = list.map((r,i)=>{
-        const wr = (r.rounds? (r.w/r.rounds*100): 0).toFixed(1) + "%";
-        return `
-          <div class="rankItem">
-            <div class="name">#${i+1} ${r.nick||"玩家"}</div>
-            <div class="nums">
-              <span class="badge">盈虧：${(r.profit||0)>=0?"+":""}${r.profit||0}</span>
-              <span class="badge">勝率：${wr}</span>
-              <span class="badge">局數：${r.rounds||0}</span>
-              <span class="badge">最長連勝：${r.bestStreak||0}</span>
-            </div>
-          </div>
-        `;
-      }).join("") || '<div style="opacity:.7">目前沒有資料，玩幾局看看吧！</div>';
-      box.innerHTML = rows;
-      const hint = document.getElementById("leaderHint"); if(hint) hint.textContent = "即時排行榜（雲端）";
-    });
+  const map = new Map();
+  snap.forEach(d => {
+    const r = d.data() || {};
+    const key = idFromNick(r.nick || '');
+    const cur = map.get(key) || { nick: r.nick || key, rounds:0, w:0, l:0, p:0, profit:0, bestStreak:0, updatedAt:null };
+    cur.rounds += r.rounds || 0;
+    cur.w      += r.w || 0;
+    cur.l      += r.l || 0;
+    cur.p      += r.p || 0;
+    cur.profit += r.profit || 0;
+    cur.bestStreak = Math.max(cur.bestStreak||0, r.bestStreak||0);
+    try{
+      const ts = r.updatedAt?.toDate ? r.updatedAt.toDate() : null;
+      if(ts && (!cur.updatedAt || ts > cur.updatedAt)){
+        cur.updatedAt = ts; cur.nick = r.nick || cur.nick;
+      }
+    }catch(e){}
+    map.set(key, cur);
+  });
+  const list = Array.from(map.values()).map(x => {
+    const wr = (x.rounds ? (x.w / x.rounds * 100) : 0);
+    return { ...x, winRatePct: wr };
+  }).sort((a,b)=> (b.profit||0)-(a.profit||0) || (b.rounds||0)-(a.rounds||0)).slice(0,10);
+
+  const box = document.getElementById("leaderList");
+  if(!box) return;
+  const rows = list.map((r,i)=>{
+    const wr = r.winRatePct.toFixed(1) + "%";
+    return `
+      <div class="rankItem">
+        <div class="name">#${i+1} ${r.nick||"玩家"}</div>
+        <div class="nums">
+          <span class="badge">盈虧：${(r.profit||0)>=0?"+":""}${r.profit||0}</span>
+          <span class="badge">勝率：${wr}</span>
+          <span class="badge">局數：${r.rounds||0}</span>
+          <span class="badge">最長連勝：${r.bestStreak||0}</span>
+        </div>
+      </div>
+    `;
+  }).join("") || '<div style="opacity:.7">目前沒有資料，玩幾局看看吧！</div>';
+  box.innerHTML = rows;
+  const hint = document.getElementById("leaderHint"); if(hint) hint.textContent = "統一排行榜（跨裝置）";
+});
   }
 
   // Hook submitToBoard to always include cloud write
