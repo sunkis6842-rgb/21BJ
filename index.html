@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Blackjack v1.01</title>
+<title>Blackjack v1.00</title>
 <style>
   :root{ --felt:#064420; --ink:#e9fbf6; --ok:#22c55e; --warn:#fbbf24; --bad:#ef4444; --accent:#60a5fa; }
   *{box-sizing:border-box} html,body{height:100%}
@@ -156,7 +156,7 @@
 </head>
 <body>
 <canvas id="fx"></canvas>
-<header><h1>Blackjack v1.01</h1></header>
+<header><h1>Blackjack v1.00</h1></header>
 
 <main>
   <section class="panel" id="table">
@@ -1043,6 +1043,18 @@ function renderBoard(){
     };
     startLeaderboardGuarded();
   })();
+</script>
+
+<script>
+// Flush latest stats when page is hidden or unloading
+(function(){
+  async function flush(){
+    try{ if(typeof window.submitToBoard==='function'){ await window.submitToBoard(); } }catch(e){}
+  }
+  document.addEventListener('visibilitychange', ()=>{ if(document.hidden) flush(); });
+  window.addEventListener('pagehide', flush);
+  window.addEventListener('beforeunload', function(){ try{ if(typeof window.submitToBoard==='function'){ window.submitToBoard(); } }catch(e){} });
+})();
 </script>
 </body>
 </html>
