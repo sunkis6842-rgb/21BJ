@@ -983,8 +983,11 @@ function renderBoard(){
   }
 
   function idFromNick(nick){
-    return String(nick||"player").trim().toLowerCase().replace(/[^a-z0-9_-]+/g,"-").slice(0,40) || "player";
-  }
+  let s = String(nick||'').trim();
+  s = s.replace(/[\/]/g, '-'); // Firestore docId cannot contain '/'
+  if(!s) s = '玩家';
+  return s.slice(0, 60);
+}
 
   async function submitToCloudGuarded(){
     const db = window.__FIRE_DB__;
@@ -1055,6 +1058,108 @@ function renderBoard(){
   window.addEventListener('pagehide', flush);
   window.addEventListener('beforeunload', function(){ try{ if(typeof window.submitToBoard==='function'){ window.submitToBoard(); } }catch(e){} });
 })();
+</script>
+
+<script type="module">
+  // --- Robust per-round cloud sync ---
+  import { initializeApp, getApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
+  import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
+  import { getFirestore, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+
+  const _cfg = {
+    apiKey: "AIzaSyC2TTwCb177fuQTIIk_7AE5xVJ2JBbdZzk",
+    authDomain: "hanksbj21.firebaseapp.com",
+    projectId: "hanksbj21",
+    storageBucket: "hanksbj21.firebasestorage.app",
+    messagingSenderId: "560462250997",
+    appId: "1:560462250997:web:574f0cca89b58c0d2856bc",
+    measurementId: "G-T2YY5WVEBS"
+  };
+
+  function ensureApp(){
+    const app = getApps().length ? getApp() : initializeApp(_cfg);
+    if(!window.__FIRE_APP__) window.__FIRE_APP__ = app;
+    if(!window.__FIRE_AUTH__) window.__FIRE_AUTH__ = getAuth(app);
+    if(!window.__FIRE_DB__) window.__FIRE_DB__ = getFirestore(app);
+    return app;
+  }
+  async function ensureAuth(){
+    const auth = window.__FIRE_AUTH__ || getAuth(ensureApp());
+    if(!auth.currentUser){
+      try{ await signInAnonymously(auth); }catch(e){}
+    }
+    await new Promise(r => onAuthStateChanged(auth, u => u && r()));
+    return auth;
+  }
+
+  async function cloudSubmitFallback(){
+    await ensureAuth();
+    const db = window.__FIRE_DB__ || getFirestore(ensureApp());
+    const s = window.state || {};
+    const cur = {
+      rounds: s.rounds||0, w: s.wCount||0, l: s.lCount||0, p: s.pCount||0,
+      profit: s.profitSum||0, bestStreak: s.bestStreak||0
+    };
+    const winRate = cur.rounds ? (cur.w/cur.rounds) : 0;
+    const nick = (window.LEADER && window.LEADER.nick) || '玩家';
+    const ref = doc(db, "leaderboard", (window.idFromNick?window.idFromNick(nick):nick));
+    await setDoc(ref, { nick, ...cur, winRate, updatedAt: serverTimestamp() }, { merge: true });
+    console.log("[CLOUD] per-round write ok");
+  }
+
+  // Wrap submitToBoard to always include a cloud write (using existing cloud fn if present)
+  (function wrapSubmitCloud(){
+    const oldSubmit = window.submitToBoard;
+    window.submitToBoard = async function(){
+      try{ oldSubmit && oldSubmit(); }catch(e){}
+      const fn = window.submitToCloudGuarded || window.submitToCloud || cloudSubmitFallback;
+      try{ await fn(); }catch(e){ console.warn("cloud write failed", e); }
+    };
+  })();
+
+  // Ensure settle() triggers submitToBoard every round, even if defined late
+  (function forcePerRoundSync(){
+    function wrapOnce(){
+      const s = window.settle;
+      if(typeof s === 'function' && !s.__cloudWrapped__){
+        const original = s;
+        const wrapped = function(...args){
+          const ret = original.apply(this, args);
+          try{ if(typeof window.submitToBoard==='function'){ window.submitToBoard(); } }catch(e){}
+          return ret;
+        };
+        wrapped.__cloudWrapped__ = true;
+        window.settle = wrapped;
+        console.log("[CLOUD] settle wrapped for per-round sync");
+      }
+    }
+    // run now, on load, and a short poll to catch late assignments
+    wrapOnce();
+    window.addEventListener('load', wrapOnce);
+    let tries = 0;
+    const timer = setInterval(()=>{
+      wrapOnce(); tries++;
+      if(tries>20) clearInterval(timer);
+    }, 300);
+  })();
+
+  // Initial sync on first load
+  (async function initialSync(){
+    try{
+      await ensureAuth();
+      await (window.submitToCloudGuarded ? window.submitToCloudGuarded() : cloudSubmitFallback());
+    }catch(e){}
+  })();
+
+  // Flush on page hide/unload (mobile-safe)
+  (function flushOnHide(){
+    async function flush(){
+      try{ if(typeof window.submitToBoard==='function'){ await window.submitToBoard(); } }catch(e){}
+    }
+    document.addEventListener('visibilitychange', ()=>{ if(document.hidden) flush(); });
+    window.addEventListener('pagehide', flush);
+    window.addEventListener('beforeunload', function(){ try{ if(typeof window.submitToBoard==='function'){ window.submitToBoard(); } }catch(e){} });
+  })();
 </script>
 </body>
 </html>
