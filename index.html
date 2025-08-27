@@ -172,11 +172,12 @@
   border:1px solid rgba(255,255,255,.12);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 6px 18px rgba(0,0,0,.22);
 }
-.lb-left{display:flex;align-items:center;gap: 8px;min-width:0}
+.lb-left{display:flex;align-items:center;gap:10px;min-width:0}
 .lb-medal{width:28px;height:28px;border-radius:999px;display:grid;place-items:center;font-weight:900;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.1)}
 .lb-medal.g{background:linear-gradient(135deg,#f7d774,#facc15);color:#3b2f00;border-color:#f59e0b}
 .lb-medal.s{background:linear-gradient(135deg,#e5e7eb,#d1d5db);color:#111827;border-color:#9ca3af}
 .lb-medal.b{background:linear-gradient(135deg,#f1c0a0,#d97706);color:#3f1d0b;border-color:#b45309}
+.lb-avatar{width:28px;height:28px;border-radius:999px;display:grid;place-items:center;font-weight:800;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.12)}
 .lb-name{font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:28vw}
 .lb-stats{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
 .lb-pill{font-weight:800;padding:4px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.08);font-size:12px;white-space:nowrap}
@@ -1075,11 +1076,14 @@ const rows = list.map((r,i)=>{
   const medal = rank===1?'g':(rank===2?'s':(rank===3?'b':''));
   const tag = medal ? `<div class="lb-medal ${medal}">${rank}</div>` : `<div class="lb-medal">${rank}</div>`;
   const name = (r.nick||'玩家');
-const wr = ((r.winRatePct!=null?r.winRatePct:(r.rounds? (r.w/r.rounds*100):0))).toFixed(1) + '%';
+  const initials = String(name).trim().slice(0,2) || '玩家';
+  const wr = ((r.winRatePct!=null?r.winRatePct:(r.rounds? (r.w/r.rounds*100):0))).toFixed(1) + '%';
   return `
     <div class="lb-item">
       <div class="lb-left">
-        ${tag} <div class="lb-name">${name}</div>
+        ${tag}
+        <div class="lb-avatar">${initials}</div>
+        <div class="lb-name">${name}</div>
       </div>
       <div class="lb-stats">
         <div class="lb-pill">盈虧：${(r.profit||0)>=0?'+':''}${r.profit||0}</div>
@@ -1222,11 +1226,14 @@ const rows = list.map((r,i)=>{
   const medal = rank===1?'g':(rank===2?'s':(rank===3?'b':''));
   const tag = medal ? `<div class="lb-medal ${medal}">${rank}</div>` : `<div class="lb-medal">${rank}</div>`;
   const name = (r.nick||'玩家');
-const wr = ((r.winRatePct!=null?r.winRatePct:(r.rounds? (r.w/r.rounds*100):0))).toFixed(1) + '%';
+  const initials = String(name).trim().slice(0,2) || '玩家';
+  const wr = ((r.winRatePct!=null?r.winRatePct:(r.rounds? (r.w/r.rounds*100):0))).toFixed(1) + '%';
   return `
     <div class="lb-item">
       <div class="lb-left">
-        ${tag} <div class="lb-name">${name}</div>
+        ${tag}
+        <div class="lb-avatar">${initials}</div>
+        <div class="lb-name">${name}</div>
       </div>
       <div class="lb-stats">
         <div class="lb-pill">盈虧：${(r.profit||0)>=0?'+':''}${r.profit||0}</div>
@@ -1334,11 +1341,14 @@ const rows = list.map((r,i)=>{
   const medal = rank===1?'g':(rank===2?'s':(rank===3?'b':''));
   const tag = medal ? `<div class="lb-medal ${medal}">${rank}</div>` : `<div class="lb-medal">${rank}</div>`;
   const name = (r.nick||'玩家');
-const wr = ((r.winRatePct!=null?r.winRatePct:(r.rounds? (r.w/r.rounds*100):0))).toFixed(1) + '%';
+  const initials = String(name).trim().slice(0,2) || '玩家';
+  const wr = ((r.winRatePct!=null?r.winRatePct:(r.rounds? (r.w/r.rounds*100):0))).toFixed(1) + '%';
   return `
     <div class="lb-item">
       <div class="lb-left">
-        ${tag} <div class="lb-name">${name}</div>
+        ${tag}
+        <div class="lb-avatar">${initials}</div>
+        <div class="lb-name">${name}</div>
       </div>
       <div class="lb-stats">
         <div class="lb-pill">盈虧：${(r.profit||0)>=0?'+':''}${r.profit||0}</div>
