@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Blackjack v1.00</title>
+<title>Blackjack v1.1</title>
 <style>
   :root{ --felt:#064420; --ink:#e9fbf6; --ok:#22c55e; --warn:#fbbf24; --bad:#ef4444; --accent:#60a5fa; }
   *{box-sizing:border-box} html,body{height:100%}
@@ -342,10 +342,58 @@
   .lb-pill{font-size:10px;padding:2px 6px}
 }
 </style>
+
+<script>
+// === Nickname prompt (runs early) ===
+(function(){
+  const NICK_KEY = "bj_nick";
+  function sanitize(n){ return String(n||"").trim().replace(/[\/]/g, "-"); }
+  function askNick(){
+    let nick = "";
+    let tries = 0;
+    while(!sanitize(nick) && tries < 6){
+      nick = prompt("請輸入你的暱稱（排行榜將以此顯示，可用中文/表情）:", "") || "";
+      tries++;
+    }
+    if(!sanitize(nick)) nick = "玩家";
+    try{ localStorage.setItem(NICK_KEY, nick); }catch(e){ /* iOS private mode: ignore */ }
+    window.LEADER = window.LEADER || {};
+    window.LEADER.nick = nick;
+  }
+  // Force re-prompt with ?reset_nick=1
+  const forceReset = /(?:\?|&)reset_nick=1(?:&|$)/.test(location.search);
+  let saved = "";
+  try{ saved = localStorage.getItem(NICK_KEY) || ""; }catch(e){ saved = ""; }
+  if(forceReset){ try{ localStorage.removeItem(NICK_KEY); }catch(e){} saved = ""; }
+  if(!sanitize(saved)){ askNick(); } else {
+    window.LEADER = window.LEADER || {}; window.LEADER.nick = saved;
+  }
+})();
+</script>
 </head>
 <body>
 <canvas id="fx"></canvas>
-<header><h1>Blackjack v1.00</h1></header>
+<header><h1>Blackjack v1.1</h1></header>
+
+<script>
+(function(){
+  function setHeaderWithNick(){
+    var nick = (window.LEADER && window.LEADER.nick) || "";
+    var h1 = document.querySelector('header h1');
+    var text = "Blackjack v1.1" + (nick ? " — " + nick : "");
+    if (h1) h1.textContent = text;
+    try { document.title = text; } catch(e){}
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", setHeaderWithNick);
+  } else {
+    setHeaderWithNick();
+  }
+  // If nickname might be set slightly later, update once more after a short delay
+  setTimeout(setHeaderWithNick, 600);
+})();
+</script>
+
 
 <main>
   <section class="panel" id="table">
