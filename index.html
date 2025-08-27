@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Blackjack v1.00</title>
+<title>Blackjack v1.01</title>
 <style>
   :root{ --felt:#064420; --ink:#e9fbf6; --ok:#22c55e; --warn:#fbbf24; --bad:#ef4444; --accent:#60a5fa; }
   *{box-sizing:border-box} html,body{height:100%}
@@ -128,10 +128,35 @@
   border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06)}
 </style>
 <!-- Leaderboard CSS END -->
+
+<!-- Leaderboard Pretty CSS -->
+<style id="leaderboard-pretty">
+#leaderPanel{border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:12px;background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.03));box-shadow:0 8px 24px rgba(0,0,0,.25)}
+#leaderPanel .panel-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+#leaderPanel .panel-title b{font-size:15px;letter-spacing:.5px}
+#leaderPanel .panel-title small{opacity:.9}
+#leaderList{display:flex;flex-direction:column;gap:8px}
+#leaderPanel .rankItem{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:10px 12px;border-radius:14px;
+  background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.03));
+  border:1px solid rgba(255,255,255,.12);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 4px 12px rgba(0,0,0,.18);
+  transition:transform .15s ease, box-shadow .2s ease;
+}
+#leaderPanel .rankItem:hover{ transform: translateY(-2px); box-shadow:0 10px 24px rgba(0,0,0,.28); }
+#leaderPanel .name{font-weight:900;font-size:14px;display:flex;align-items:center;gap:8px}
+#leaderPanel .medal{width:22px;height:22px;border-radius:999px;display:inline-grid;place-items:center;font-weight:900}
+#leaderPanel .medal.g{background:linear-gradient(135deg,#f7d774,#facc15);color:#4a3f00;border:1px solid #f59e0b}
+#leaderPanel .medal.s{background:linear-gradient(135deg,#e5e7eb,#d1d5db);color:#1f2937;border:1px solid #9ca3af}
+#leaderPanel .medal.b{background:linear-gradient(135deg,#f1c0a0,#d97706);color:#3f1d0b;border:1px solid #b45309}
+#leaderPanel .nums{display:flex;gap:8px;flex-wrap:wrap}
+#leaderPanel .badge{font-weight:800;padding:3px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);font-size:12px}
+</style>
 </head>
 <body>
 <canvas id="fx"></canvas>
-<header><h1>Blackjack v1.00</h1></header>
+<header><h1>Blackjack v1.01</h1></header>
 
 <main>
   <section class="panel" id="table">
@@ -150,7 +175,6 @@
       <div>單位：<b id="unit">100</b></div>
       <button class="btn n" onclick="toggle1326()">切換 1-3-2-6</button>
       <button class="btn n" onclick="clearBet()">清空下注</button>
-      <button class="btn g" onclick="carry()">🎒 換籌碼</button>
       <button class="btn w" onclick="window.location.reload()">🔄 重新整理</button>
     </div>
         
@@ -190,7 +214,7 @@
 <section class="panel" id="leaderPanel">
   <div style="display:flex;align-items:center;justify-content:space-between;">
     <b>排行榜（前 10 名）</b>
-    <small id="leaderHint" style="opacity:.8">每 5 局或籌碼歸 0 會上傳</small>
+    <small id="leaderHint" style="opacity:.8">即時排行榜（雲端）</small>
   </div>
   <div id="leaderList" class="histList" style="max-height:260px"></div>
 </section>
@@ -917,16 +941,12 @@ function renderBoard(){
 </script>
 <!-- Leaderboard JS END -->
 
-<div id="dbgMsg" style="position:fixed;right:16px;bottom:62px;z-index:99999;padding:8px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.25);background:rgba(0,0,0,.5);color:#fff;font-size:12px;max-width:50vw;backdrop-filter:blur(6px);display:none"></div>
-<div id="dbgBtn" style="position:fixed;right:16px;bottom:16px;z-index:99999;padding:10px 14px;border-radius:999px;border:1px solid rgba(255,255,255,.3);background:rgba(0,0,0,.55);color:#fff;font-weight:800;backdrop-filter:blur(6px);cursor:pointer">☁ 測試上傳</div>
-
-<!-- Firebase Guarded Cloud Layer -->
+<!-- Firebase Guarded Cloud Layer (no test button) -->
 <script type="module">
   import { initializeApp, getApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
   import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
   import { getFirestore, doc, setDoc, serverTimestamp, collection, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 
-  // === Your Firebase project ===
   const firebaseConfig = {
     apiKey: "AIzaSyC2TTwCb177fuQTIIk_7AE5xVJ2JBbdZzk",
     authDomain: "hanksbj21.firebaseapp.com",
@@ -937,7 +957,6 @@ function renderBoard(){
     measurementId: "G-T2YY5WVEBS"
   };
 
-  // === Guarded init / reuse (prevents app/app-deleted & double init) ===
   function ensureApp(){
     try{
       const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
@@ -946,7 +965,6 @@ function renderBoard(){
       if(!window.__FIRE_DB__) window.__FIRE_DB__ = getFirestore(app);
       return app;
     }catch(e){
-      console.warn("[FIRE] ensureApp failed, retrying fresh", e);
       const app = initializeApp(firebaseConfig);
       window.__FIRE_APP__ = app;
       window.__FIRE_AUTH__ = getAuth(app);
@@ -958,7 +976,7 @@ function renderBoard(){
   async function ensureAuth(){
     const auth = window.__FIRE_AUTH__ || getAuth(window.__FIRE_APP__ || ensureApp());
     if(!auth.currentUser){
-      try{ await signInAnonymously(auth); }catch(e){ /* ignore */ }
+      try{ await signInAnonymously(auth); }catch(e){}
     }
     await new Promise(r => onAuthStateChanged(auth, u => u && r()));
     return auth;
@@ -969,89 +987,61 @@ function renderBoard(){
   }
 
   async function submitToCloudGuarded(){
-    try{
-      ensureApp(); await ensureAuth();
-      const db = window.__FIRE_DB__;
-      const s = window.state || {};
-      const cur = {
-        rounds: s.rounds||0, w: s.wCount||0, l: s.lCount||0, p: s.pCount||0,
-        profit: s.profitSum||0, bestStreak: s.bestStreak||0
-      };
-      const winRate = cur.rounds ? (cur.w/cur.rounds) : 0;
-      const nick = (window.LEADER?.nick) || "玩家";
-      const ref = doc(db, "leaderboard", idFromNick(nick));
-      await setDoc(ref, { nick, ...cur, winRate, updatedAt: serverTimestamp() }, { merge: true });
-      msg("✅ 雲端寫入成功");
-      console.log("[FIRE] write ok");
-    }catch(e){
-      msg("❌ 雲端寫入失敗：" + (e?.message||e));
-      console.error("[FIRE] write failed", e);
-      if(String(e?.code||"").includes("app-deleted")){
-        console.warn("[FIRE] app-deleted detected, re-init and retry once");
-        try{ ensureApp(); await submitToCloudGuarded(); }catch(e2){ console.error("[FIRE] retry failed", e2); }
-      }
-    }
+    const db = window.__FIRE_DB__;
+    const s = window.state || {};
+    const cur = {
+      rounds: s.rounds||0, w: s.wCount||0, l: s.lCount||0, p: s.pCount||0,
+      profit: s.profitSum||0, bestStreak: s.bestStreak||0
+    };
+    const winRate = cur.rounds ? (cur.w/cur.rounds) : 0;
+    const nick = (window.LEADER?.nick) || "玩家";
+    const ref = doc(db, "leaderboard", idFromNick(nick));
+    await setDoc(ref, { nick, ...cur, winRate, updatedAt: serverTimestamp() }, { merge: true });
   }
 
   function startLeaderboardGuarded(){
-    try{
-      ensureApp();
-      const db = window.__FIRE_DB__;
-      const q = query(collection(db,"leaderboard"), orderBy("profit","desc"), limit(10));
-      onSnapshot(q, (snap) => {
-        const list = []; snap.forEach(d => list.push(d.data()));
-        const box = document.getElementById("leaderList"); if(!box) return;
-        const rows = list.map((r,i)=>{
-          const wr = (r.rounds? (r.w/r.rounds*100): 0).toFixed(1) + "%";
-          const updated = r.updatedAt?.toDate ? r.updatedAt.toDate().toLocaleString() : "";
-          return `
-            <div class="rankItem">
-              <div>
-                <div class="name">#${i+1} ${r.nick||"玩家"}</div>
-                <div class="nums">
-                  <span class="badge">盈虧：${(r.profit||0)>=0?"+":""}${r.profit||0}</span>
-                  <span class="badge">勝率：${wr}</span>
-                  <span class="badge">局數：${r.rounds||0}</span>
-                  <span class="badge">最長連勝：${r.bestStreak||0}</span>
-                </div>
-              </div>
-              <small style="opacity:.6">${updated}</small>
+    const db = window.__FIRE_DB__;
+    const q = query(collection(db,"leaderboard"), orderBy("profit","desc"), limit(10));
+    onSnapshot(q, (snap) => {
+      const list = []; snap.forEach(d => list.push(d.data()));
+      const box = document.getElementById("leaderList"); if(!box) return;
+      const rows = list.map((r,i)=>{
+        const rank = i+1;
+        const wr = (r.rounds? (r.w/r.rounds*100): 0).toFixed(1) + "%";
+        const updated = r.updatedAt?.toDate ? r.updatedAt.toDate().toLocaleString() : "";
+        const medal = rank===1?'<span class="medal g">1</span>':(rank===2?'<span class="medal s">2</span>':(rank===3?'<span class="medal b">3</span>':''));
+        return `
+          <div class="rankItem">
+            <div class="name">${medal} #${rank} ${r.nick||"玩家"}</div>
+            <div class="nums">
+              <span class="badge">盈虧：${(r.profit||0)>=0?"+":""}${r.profit||0}</span>
+              <span class="badge">勝率：${wr}</span>
+              <span class="badge">局數：${r.rounds||0}</span>
+              <span class="badge">最長連勝：${r.bestStreak||0}</span>
             </div>
-          `;
-        }).join("") || '<div style="opacity:.7">目前沒有資料，玩幾局看看吧！</div>';
-        box.innerHTML = rows;
-        const hint = document.getElementById("leaderHint");
-        if(hint) hint.textContent = "（雲端已連線，即時更新）";
-      });
-    }catch(e){
-      msg("❌ 排行榜監聽失敗：" + (e?.message||e));
-      console.error("[FIRE] startLeaderboard failed", e);
-      if(String(e?.code||"").includes("app-deleted")){
-        ensureApp();
-        startLeaderboardGuarded();
-      }
+          </div>
+        `;
+      }).join("") || '<div style="opacity:.7">目前沒有資料，玩幾局看看吧！</div>';
+      box.innerHTML = rows;
+      const hint = document.getElementById("leaderHint"); if(hint) hint.textContent = "即時排行榜（雲端）";
+    });
+  }
+
+  // Wire dual-write and initial upload
+  (async function wire(){
+    ensureApp(); await ensureAuth();
+    // initial submit once at game start
+    if(!window.__CLOUD_INIT_UPLOADED__){
+      try{ await submitToCloudGuarded(); }catch(e){}
+      window.__CLOUD_INIT_UPLOADED__ = true;
     }
-  }
-
-  // Simple toast
-  function msg(t){
-    const m = document.getElementById("dbgMsg");
-    if(!m) return;
-    m.textContent = t;
-    m.style.display = "block";
-    setTimeout(()=>{ m.style.display = "none"; }, 4000);
-  }
-
-  // Wire up dual-write: keep original submitToBoard (local) + cloud
-  (function wire(){
-    ensureApp();
+    // wrap local submit to also cloud
     const oldSubmit = window.submitToBoard;
     window.submitToBoard = async function(){
-      try{ oldSubmit && oldSubmit(); }catch(e){ /* local may throw */ }
-      await submitToCloudGuarded();
+      try{ oldSubmit && oldSubmit(); }catch(e){}
+      try{ await submitToCloudGuarded(); }catch(e){}
     };
     startLeaderboardGuarded();
-    document.getElementById("dbgBtn")?.addEventListener("click", submitToCloudGuarded);
   })();
 </script>
 </body>
