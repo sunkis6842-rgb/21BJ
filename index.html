@@ -664,7 +664,7 @@ function render(){
     const label=document.createElement('b'); label.className='ph-label'; label.textContent = state.playerHands.length>1? ('玩家'+(i+1)+'：') : '玩家：';
     const total=document.createElement('span'); total.id = 'playerTotal'+i; total.textContent = h.length? prettyPlayerTotal(h):'—';
 // 若前兩張為 Pair，在點數旁加上徽章提醒
-try{ if (typeof isPair==='function' && isPair(h)) { const pairTag=document.createElement('span'); pairTag.className='pairBadge'; pairTag.textContent='PAIR ↔️ 可分牌'; total.appendChild(pairTag); } }catch(e){};
+try{ if (typeof isPair==='function' && isPair(h)) { const pairTag=document.createElement('span'); pairTag.className='pairBadge'; pairTag.textContent='PAIR'; total.appendChild(pairTag); } }catch(e){};
 
     const cards=document.createElement('div'); cards.className='cards';
     h.forEach(c=>{ const el=document.createElement('div'); el.className='card'+(REDS[c.suit]?' red':''); el.textContent=c.rank+c.suit; cards.appendChild(el); });
