@@ -341,6 +341,12 @@
 @media (max-width: 360px){
   .lb-pill{font-size:10px;padding:2px 6px}
 }
+
+.pairBadge{
+  margin-left:8px; padding:2px 8px; border-radius:999px;
+  font-weight:900; font-size:12px;
+  background:rgba(96,165,250,.15); border:1px solid rgba(96,165,250,.35);
+}
 </style>
 
 <script>
@@ -657,6 +663,9 @@ function render(){
   for(let i=0;i<state.playerHands.length;i++){ const h=state.playerHands[i]; const handDiv=document.createElement('div'); handDiv.className='hand'+(i===state.activeHand && state.allowActions?' active':'');
     const label=document.createElement('b'); label.className='ph-label'; label.textContent = state.playerHands.length>1? ('玩家'+(i+1)+'：') : '玩家：';
     const total=document.createElement('span'); total.id = 'playerTotal'+i; total.textContent = h.length? prettyPlayerTotal(h):'—';
+// 若前兩張為 Pair，在點數旁加上徽章提醒
+try{ if (typeof isPair==='function' && isPair(h)) { const pairTag=document.createElement('span'); pairTag.className='pairBadge'; pairTag.textContent='PAIR ↔️ 可分牌'; total.appendChild(pairTag); } }catch(e){};
+
     const cards=document.createElement('div'); cards.className='cards';
     h.forEach(c=>{ const el=document.createElement('div'); el.className='card'+(REDS[c.suit]?' red':''); el.textContent=c.rank+c.suit; cards.appendChild(el); });
     handDiv.appendChild(label); handDiv.appendChild(total); handDiv.appendChild(cards);
@@ -1143,7 +1152,8 @@ const rows = top.map((r, i)=>{
     </div>
   `;
 }).join('') || '<div class="lb-empty">目前沒有資料，玩幾局看看吧！</div>';
-box.innerHTML = rows;
+box// rows include profitView from profitAllTime when present
+.innerHTML = rows;
 
 }
 
@@ -1185,7 +1195,7 @@ box.innerHTML = rows;
 <script type="module">
   import { initializeApp, getApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
   import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
-  import { getFirestore, doc, setDoc, serverTimestamp, collection, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+  import { getFirestore, doc, getDoc, setDoc, serverTimestamp, collection, query, orderBy, limit, onSnapshot} from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyC2TTwCb177fuQTIIk_7AE5xVJ2JBbdZzk",
@@ -1238,8 +1248,50 @@ box.innerHTML = rows;
 }
 
   async function submitToCloudGuarded(){
-    const db = window.__FIRE_DB__;
-    const s = window.state || {};
+  await ensureAuth();
+  const db = window.__FIRE_DB__ || getFirestore(ensureApp());
+  const s = window.state || {};
+  const cur = {
+    rounds: s.rounds||0,
+    w: s.wCount||0,
+    l: s.lCount||0,
+    p: s.pCount||0,
+    profit: s.profitSum||0,
+    bestStreak: s.bestStreak||0
+  };
+  const winRate = cur.rounds ? (cur.w/cur.rounds) : 0;
+  const nick = (window.LEADER && window.LEADER.nick) || '玩家';
+  const ref = doc(db, "leaderboard", idFromNick(nick));
+
+  // 讀舊資料
+  let prev = {};
+  try {
+    const snap = await getDoc(ref);
+    if (snap.exists()) prev = snap.data() || {};
+  } catch(e){ /* ignore read error */ }
+
+  // 以「最高/最佳」為準，不被較低值覆蓋
+  const merged = {
+    nick,
+    // 當下的即時值
+    rounds: cur.rounds,
+    w: cur.w,
+    l: cur.l,
+    p: cur.p,
+    profit: cur.profit,
+    bestStreak: cur.bestStreak,
+    winRate,
+    // 終身最高（新增欄位）
+    profitAllTime: Math.max(Number(prev.profitAllTime||0), Number(cur.profit||0)),
+    bestStreakAllTime: Math.max(Number(prev.bestStreakAllTime||0), Number(cur.bestStreak||0)),
+    winRateAllTime: Math.max(Number(prev.winRateAllTime||0), Number(winRate||0)),
+    roundsAllTime: Math.max(Number(prev.roundsAllTime||0), Number(cur.rounds||0)),
+    updatedAt: serverTimestamp()
+  };
+
+  await setDoc(ref, merged, { merge: true });
+}
+;
     const cur = {
       rounds: s.rounds||0, w: s.wCount||0, l: s.lCount||0, p: s.pCount||0,
       profit: s.profitSum||0, bestStreak: s.bestStreak||0
@@ -1252,7 +1304,7 @@ box.innerHTML = rows;
 
   function startLeaderboardGuarded(){
     const db = window.__FIRE_DB__;
-    const q = query(collection(db,"leaderboard"), orderBy("profit","desc"), limit(10));
+    const q = query(collection(db, "leaderboard"), orderBy("profitAllTime", "desc"), limit(10));
     onSnapshot(q, (snap) => {
   const map = new Map();
   snap.forEach(d => {
@@ -1276,7 +1328,7 @@ box.innerHTML = rows;
   const list = Array.from(map.values()).map(x => {
     const wr = (x.rounds ? (x.w / x.rounds * 100) : 0);
     return { ...x, winRatePct: wr };
-  }).sort((a,b)=> (b.profit||0)-(a.profit||0) || (b.rounds||0)-(a.rounds||0)).slice(0,10);
+  }).sort((a,b)=>((b.profitAllTime??b.profit??0)-(a.profitAllTime??a.profit??0)) || (b.rounds||0)-(a.rounds||0)).slice(0,10);
 
   const box = document.getElementById("leaderList");
   if(!box) return;
@@ -1303,7 +1355,8 @@ const rows = list.map((r,i)=>{
     </div>
   `;
 }).join("") || '<div class="lb-empty">目前沒有資料，玩幾局看看吧！</div>';
-box.innerHTML = rows;
+box// rows include profitView from profitAllTime when present
+.innerHTML = rows;
 
 
 });
@@ -1342,7 +1395,7 @@ box.innerHTML = rows;
 <script type="module">
   import { initializeApp, getApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
   import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
-  import { getFirestore, doc, setDoc, serverTimestamp, collection, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+  import { getFirestore, doc, getDoc, setDoc, serverTimestamp, collection, query, orderBy, limit, onSnapshot} from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyC2TTwCb177fuQTIIk_7AE5xVJ2JBbdZzk",
@@ -1387,9 +1440,50 @@ box.innerHTML = rows;
   }
 
   async function submitToCloudGuarded(){
-    await ensureAuth();
-    const db = window.__FIRE_DB__ || getFirestore(ensureApp());
-    const s = window.state || {};
+  await ensureAuth();
+  const db = window.__FIRE_DB__ || getFirestore(ensureApp());
+  const s = window.state || {};
+  const cur = {
+    rounds: s.rounds||0,
+    w: s.wCount||0,
+    l: s.lCount||0,
+    p: s.pCount||0,
+    profit: s.profitSum||0,
+    bestStreak: s.bestStreak||0
+  };
+  const winRate = cur.rounds ? (cur.w/cur.rounds) : 0;
+  const nick = (window.LEADER && window.LEADER.nick) || '玩家';
+  const ref = doc(db, "leaderboard", idFromNick(nick));
+
+  // 讀舊資料
+  let prev = {};
+  try {
+    const snap = await getDoc(ref);
+    if (snap.exists()) prev = snap.data() || {};
+  } catch(e){ /* ignore read error */ }
+
+  // 以「最高/最佳」為準，不被較低值覆蓋
+  const merged = {
+    nick,
+    // 當下的即時值
+    rounds: cur.rounds,
+    w: cur.w,
+    l: cur.l,
+    p: cur.p,
+    profit: cur.profit,
+    bestStreak: cur.bestStreak,
+    winRate,
+    // 終身最高（新增欄位）
+    profitAllTime: Math.max(Number(prev.profitAllTime||0), Number(cur.profit||0)),
+    bestStreakAllTime: Math.max(Number(prev.bestStreakAllTime||0), Number(cur.bestStreak||0)),
+    winRateAllTime: Math.max(Number(prev.winRateAllTime||0), Number(winRate||0)),
+    roundsAllTime: Math.max(Number(prev.roundsAllTime||0), Number(cur.rounds||0)),
+    updatedAt: serverTimestamp()
+  };
+
+  await setDoc(ref, merged, { merge: true });
+}
+;
     const cur = {
       rounds: s.rounds||0, w: s.wCount||0, l: s.lCount||0, p: s.pCount||0,
       profit: s.profitSum||0, bestStreak: s.bestStreak||0
@@ -1402,7 +1496,7 @@ box.innerHTML = rows;
 
   function startLeaderboard(){
     const db = window.__FIRE_DB__ || getFirestore(ensureApp());
-    const q = query(collection(db, "leaderboard"), orderBy("profit", "desc"), limit(10));
+    const q = query(collection(db, "leaderboard"), orderBy("profitAllTime", "desc"), limit(10));
     onSnapshot(q, (snap) => {
   const map = new Map();
   snap.forEach(d => {
@@ -1426,7 +1520,7 @@ box.innerHTML = rows;
   const list = Array.from(map.values()).map(x => {
     const wr = (x.rounds ? (x.w / x.rounds * 100) : 0);
     return { ...x, winRatePct: wr };
-  }).sort((a,b)=> (b.profit||0)-(a.profit||0) || (b.rounds||0)-(a.rounds||0)).slice(0,10);
+  }).sort((a,b)=>((b.profitAllTime??b.profit??0)-(a.profitAllTime??a.profit??0)) || (b.rounds||0)-(a.rounds||0)).slice(0,10);
 
   const box = document.getElementById("leaderList");
   if(!box) return;
@@ -1453,7 +1547,8 @@ const rows = list.map((r,i)=>{
     </div>
   `;
 }).join("") || '<div class="lb-empty">目前沒有資料，玩幾局看看吧！</div>';
-box.innerHTML = rows;
+box// rows include profitView from profitAllTime when present
+.innerHTML = rows;
 
 
 });
@@ -1518,7 +1613,21 @@ box.innerHTML = rows;
       const r = d.data() || {};
       const key = idFromNick(r.nick || '');
       const cur = map.get(key) || { nick: r.nick || key, rounds:0, w:0, l:0, p:0, profit:0, bestStreak:0, updatedAt:null };
-      cur.rounds += r.rounds || 0;
+      
+// Keep All-Time fields by max (if present)
+if (typeof r.profitAllTime !== 'undefined') {
+  cur.profitAllTime = Math.max(cur.profitAllTime||0, r.profitAllTime||0);
+}
+if (typeof r.bestStreakAllTime !== 'undefined') {
+  cur.bestStreakAllTime = Math.max(cur.bestStreakAllTime||0, r.bestStreakAllTime||0);
+}
+if (typeof r.winRateAllTime !== 'undefined') {
+  cur.winRateAllTime = Math.max(cur.winRateAllTime||0, r.winRateAllTime||0);
+}
+if (typeof r.roundsAllTime !== 'undefined') {
+  cur.roundsAllTime = Math.max(cur.roundsAllTime||0, r.roundsAllTime||0);
+}
+cur.rounds += r.rounds || 0;
       cur.w      += r.w || 0;
       cur.l      += r.l || 0;
       cur.p      += r.p || 0;
@@ -1535,12 +1644,12 @@ box.innerHTML = rows;
     return Array.from(map.values()).map(x => {
       const wr = (x.rounds ? (x.w / x.rounds * 100) : 0);
       return { ...x, winRatePct: wr };
-    }).sort((a,b)=> (b.profit||0)-(a.profit||0) || (b.rounds||0)-(a.rounds||0)).slice(0,10);
+    }).sort((a,b)=>((b.profitAllTime??b.profit??0)-(a.profitAllTime??a.profit??0)) || (b.rounds||0)-(a.rounds||0)).slice(0,10);
   }
 
   export async function __renderOnceFast(db, idFromNick){
     try{
-      const q = query(collection(db, "leaderboard"), orderBy("profit", "desc"), limit(10));
+      const q = query(collection(db, "leaderboard"), orderBy("profitAllTime", "desc"), limit(10));
       const snap = await getDocs(q);
       const list = __aggregateSnapshot(snap, idFromNick);
       const box = document.getElementById("leaderList");
@@ -1568,7 +1677,8 @@ const rows = list.map((r,i)=>{
     </div>
   `;
 }).join("") || '<div class="lb-empty">目前沒有資料，玩幾局看看吧！</div>';
-box.innerHTML = rows;
+box// rows include profitView from profitAllTime when present
+.innerHTML = rows;
 
 
     }catch(e){
