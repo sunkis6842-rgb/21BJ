@@ -352,7 +352,7 @@
     let nick = "";
     let tries = 0;
     while(!sanitize(nick) && tries < 6){
-      nick = prompt("請輸入你的暱稱（排行榜將以此顯示，可用中文/表情）:", "") || "";
+      nick = prompt("請輸入你的暱稱（即時戰況將以此顯示，可用中文/表情）:", "") || "";
       tries++;
     }
     if(!sanitize(nick)) nick = "玩家";
@@ -463,7 +463,7 @@
 <!-- Leaderboard Panel START -->
 <section class="panel" id="leaderPanel">
   <div style="display:flex;align-items:center;justify-content:space-between;">
-    <b>排行榜（前 10 名）</b>
+    <b>即時戰況</b>
     
   </div>
   <div id="leaderList" class="histList" style="max-height:260px"></div>
@@ -1046,7 +1046,7 @@ window.LEADER = {
     let nick = localStorage.getItem(NICK_KEY) || '';
     let guard = 0;
     while((!nick || !nick.trim()) && guard < 5){
-      nick = prompt('請輸入你的暱稱（排行榜將以此顯示）：', '') || '';
+      nick = prompt('請輸入你的暱稱（即時戰況將以此顯示）：', '') || '';
       if(nick) nick = nick.trim().slice(0,20);
       guard++;
     }
