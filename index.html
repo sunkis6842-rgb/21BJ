@@ -370,6 +370,19 @@
   }
 })();
 </script>
+
+<style id="pair-badge-style">
+.pairBadge{
+  margin-left:8px;
+  padding:2px 8px;
+  border-radius:999px;
+  font-weight:800;
+  font-size:12px;
+  background:rgba(56,189,248,.18);
+  border:1px solid rgba(56,189,248,.35);
+}
+</style>
+
 </head>
 <body>
 <canvas id="fx"></canvas>
@@ -659,7 +672,18 @@ function render(){
     const total=document.createElement('span'); total.id = 'playerTotal'+i; total.textContent = h.length? prettyPlayerTotal(h):'—';
     const cards=document.createElement('div'); cards.className='cards';
     h.forEach(c=>{ const el=document.createElement('div'); el.className='card'+(REDS[c.suit]?' red':''); el.textContent=c.rank+c.suit; cards.appendChild(el); });
-    handDiv.appendChild(label); handDiv.appendChild(total); handDiv.appendChild(cards);
+    handDiv.appendChild(label); handDiv.appendChild(total); 
+    // Pair badge right next to total (only when first two cards are a pair)
+    try{
+      if (Array.isArray(h) && h.length===2 && isPair(h)){
+        const tag = document.createElement('span');
+        tag.className = 'pairBadge';
+        tag.textContent = 'PAIR ↔️';
+        tag.title = '可分牌';
+        handDiv.appendChild(tag);
+      }
+    }catch(e){}    
+handDiv.appendChild(cards);
     wrap.appendChild(handDiv);
   }
   // buttons based on active hand
@@ -1106,13 +1130,13 @@ function submitToBoard(){
 }
 
 // --- 觸發規則：每 5 局或籌碼歸 0 時自動上傳 ---
-async function maybeSubmitBoardByRule(){
+function maybeSubmitBoardByRule(){
   try{
     const rounds = (window.state && Number.isFinite(window.state.rounds)) ? window.state.rounds : 0;
     const chips = (window.state && Number.isFinite(window.state.chips)) ? window.state.chips : 0;
     const five = (rounds > 0 && rounds % 5 === 0);
     const broke = (chips <= 0);
-    if(five || broke){  try{ await submitToCloudGuarded(); }catch(e){} submitToBoard(); }
+    if(five || broke){ submitToBoard(); }
   }catch(e){}
 }
 
@@ -1185,7 +1209,7 @@ box.innerHTML = rows;
 <script type="module">
   import { initializeApp, getApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
   import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
-  import { getFirestore, doc, getDocs, getDoc, setDoc, serverTimestamp, collection, query, orderBy, limit, onSnapshot} from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+  import { getFirestore, doc, setDoc, serverTimestamp, collection, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyC2TTwCb177fuQTIIk_7AE5xVJ2JBbdZzk",
@@ -1238,43 +1262,21 @@ box.innerHTML = rows;
 }
 
   async function submitToCloudGuarded(){
-const db = window.__FIRE_DB__ || getFirestore(ensureApp());
-const s = window.state || {};
-const cur = {
-  rounds: s.rounds||0, w: s.wCount||0, l: s.lCount||0, p: s.pCount||0,
-  profit: s.profitSum||0, bestStreak: s.bestStreak||0
-};
-const winRate = cur.rounds ? (cur.w/cur.rounds) : 0;
-const nick = (window.LEADER && window.LEADER.nick) || '玩家';
-const ref = doc(db, "leaderboard", idFromNick(nick));
-// Read previous to preserve all-time max
-let prev = {};
-try{
-  const snap = await getDoc(ref);
-  if(snap.exists()) prev = snap.data() || {};
-}catch(e){ /* ignore */ }
-const merged = {
-  nick,
-  rounds: cur.rounds,
-  w: cur.w,
-  l: cur.l,
-  p: cur.p,
-  profit: cur.profit,
-  bestStreak: cur.bestStreak,
-  winRate,
-  profitAllTime: Math.max(Number(prev.profitAllTime||0), Number(cur.profit||0)),
-  bestStreakAllTime: Math.max(Number(prev.bestStreakAllTime||0), Number(cur.bestStreak||0)),
-  winRateAllTime: Math.max(Number(prev.winRateAllTime||0), Number(winRate||0)),
-  roundsAllTime: Math.max(Number(prev.roundsAllTime||0), Number(cur.rounds||0)),
-  updatedAt: serverTimestamp()
-};
-await setDoc(ref, merged, { merge: true });
-
-}
+    const db = window.__FIRE_DB__;
+    const s = window.state || {};
+    const cur = {
+      rounds: s.rounds||0, w: s.wCount||0, l: s.lCount||0, p: s.pCount||0,
+      profit: s.profitSum||0, bestStreak: s.bestStreak||0
+    };
+    const winRate = cur.rounds ? (cur.w/cur.rounds) : 0;
+    const nick = (window.LEADER?.nick) || "玩家";
+    const ref = doc(db, "leaderboard", idFromNick(nick));
+    await setDoc(ref, { nick, ...cur, winRate, updatedAt: serverTimestamp() }, { merge: true });
+  }
 
   function startLeaderboardGuarded(){
     const db = window.__FIRE_DB__;
-    const q = query(collection(db, "leaderboard"), orderBy("profitAllTime", "desc"), limit(10));
+    const q = query(collection(db,"leaderboard"), orderBy("profit","desc"), limit(10));
     onSnapshot(q, (snap) => {
   const map = new Map();
   snap.forEach(d => {
@@ -1364,7 +1366,7 @@ box.innerHTML = rows;
 <script type="module">
   import { initializeApp, getApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
   import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
-  import { getFirestore, doc, getDocs, getDoc, setDoc, serverTimestamp, collection, query, orderBy, limit, onSnapshot} from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+  import { getFirestore, doc, setDoc, serverTimestamp, collection, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyC2TTwCb177fuQTIIk_7AE5xVJ2JBbdZzk",
@@ -1424,7 +1426,7 @@ box.innerHTML = rows;
 
   function startLeaderboard(){
     const db = window.__FIRE_DB__ || getFirestore(ensureApp());
-    const q = query(collection(db, "leaderboard"), orderBy("profitAllTime", "desc"), limit(10));
+    const q = query(collection(db, "leaderboard"), orderBy("profit", "desc"), limit(10));
     onSnapshot(q, (snap) => {
   const map = new Map();
   snap.forEach(d => {
@@ -1448,15 +1450,14 @@ box.innerHTML = rows;
   const list = Array.from(map.values()).map(x => {
     const wr = (x.rounds ? (x.w / x.rounds * 100) : 0);
     return { ...x, winRatePct: wr };
-  }).sort((a,b)=>((b.profitAllTime??b.profit??0)-(a.profitAllTime??a.profit??0)) || (b.rounds||0)-(a.rounds||0)).slice(0,10);
+  }).sort((a,b)=> (b.profit||0)-(a.profit||0) || (b.rounds||0)-(a.rounds||0)).slice(0,10);
 
   const box = document.getElementById("leaderList");
   if(!box) return;
   
 
 const rows = list.map((r,i)=>{
-  const profitView = (r.profitAllTime ?? r.profit ?? 0);
-const rank = i+1;
+  const rank = i+1;
   const medal = rank===1?'g':(rank===2?'s':(rank===3?'b':''));
   const tag = medal ? `<div class="lb-medal ${medal}">${rank}</div>` : `<div class="lb-medal">${rank}</div>`;
   const name = (r.nick||'玩家');
@@ -1468,7 +1469,7 @@ const rank = i+1;
         <div class="lb-name">${name}</div>
       </div>
       <div class="lb-stats">
-        <div class="lb-pill">盈虧：${(r.profit||0)>=0?'+':''}${profitView}</div>
+        <div class="lb-pill">盈虧：${(r.profit||0)>=0?'+':''}${r.profit||0}</div>
         <div class="lb-pill">勝率：${wr}</div>
         <div class="lb-pill">局數：${r.rounds||0}</div>
         <div class="lb-pill">連勝：${r.bestStreak||0}</div>
@@ -1532,7 +1533,7 @@ box.innerHTML = rows;
 </script>
 
 <script type="module">
-  import { getFirestore, collection, query, orderBy, limit, getDocs, getDoc} from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+  import { getFirestore, collection, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 
   // Aggregation: unify by normalized nickname
   function __aggregateSnapshot(snap, idFromNick){
@@ -1563,7 +1564,7 @@ box.innerHTML = rows;
 
   export async function __renderOnceFast(db, idFromNick){
     try{
-      const q = query(collection(db, "leaderboard"), orderBy("profitAllTime", "desc"), limit(10));
+      const q = query(collection(db, "leaderboard"), orderBy("profit", "desc"), limit(10));
       const snap = await getDocs(q);
       const list = __aggregateSnapshot(snap, idFromNick);
       const box = document.getElementById("leaderList");
