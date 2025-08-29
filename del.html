@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Leaderboard Reset Tool</title>
+<style>
+  body{font-family: ui-sans-serif, system-ui, -apple-system, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", Arial; background:#0f172a; color:#e5e7eb; padding:24px}
+  .card{max-width:720px;margin:auto;border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:20px;background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.03));box-shadow:0 12px 28px rgba(0,0,0,.35)}
+  h1{margin:0 0 8px;font-size:20px}
+  p{opacity:.9;margin:4px 0 14px}
+  label{display:block;margin-top:10px;margin-bottom:6px;opacity:.9}
+  input,button{font-size:14px}
+  input[type="text"]{width:100%;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#fff;outline:none}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .btn{padding:10px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;cursor:pointer}
+  .btn.danger{background:linear-gradient(180deg,#ef4444,#b91c1c);border-color:#7f1d1d}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .muted{opacity:.7}
+  #log{white-space:pre-wrap;background:rgba(0,0,0,.3);padding:10px;border-radius:12px;margin-top:16px;max-height:260px;overflow:auto}
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>Leaderboard Reset Tool</h1>
+    <p class="muted">⚠️ 請只在開發/測試時使用。這會「刪除整個排行榜集合」的所有文件，動作不可復原。</p>
+
+    <label>Firebase Collection 名稱（預設：<code>leaderboard</code>）</label>
+    <div class="row">
+      <input id="coll" type="text" placeholder="leaderboard" value="leaderboard"/>
+      <button class="btn" id="countBtn">計算文件數</button>
+    </div>
+
+    <label style="margin-top:16px">確認碼（輸入 <b>DELETE</b> 才能執行）</label>
+    <div class="row">
+      <input id="confirm" type="text" placeholder="輸入 DELETE 才能刪除"/>
+      <button class="btn danger" id="resetBtn" disabled>刪除全部</button>
+    </div>
+
+    <div id="status" style="margin-top:12px" class="muted">尚未連線</div>
+    <div id="log"></div>
+  </div>
+
+<script type="module">
+import { initializeApp, getApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
+import { getFirestore, collection, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+
+// === 替換成你的專案設定 ===
+const firebaseConfig = {
+  apiKey: "AIzaSyC2TTwCb177fuQTIIk_7AE5xVJ2JBbdZzk",
+  authDomain: "hanksbj21.firebaseapp.com",
+  projectId: "hanksbj21",
+  storageBucket: "hanksbj21.firebasestorage.app",
+  messagingSenderId: "560462250997",
+  appId: "1:560462250997:web:574f0cca89b58c0d2856bc",
+  measurementId: "G-T2YY5WVEBS"
+};
+
+function log(msg){ const el = document.getElementById('log'); el.textContent += msg + "\n"; el.scrollTop = el.scrollHeight; }
+function setStatus(s){ document.getElementById('status').textContent = s; }
+
+function ensureApp(){
+  const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+  window.__app = app;
+  window.__auth = getAuth(app);
+  window.__db = getFirestore(app);
+  return app;
+}
+
+async function ensureAuth(){
+  const auth = window.__auth || getAuth(ensureApp());
+  if(!auth.currentUser){ try{ await signInAnonymously(auth); }catch(e){ log("匿名登入失敗：" + e.message); } }
+  await new Promise(r => onAuthStateChanged(auth, u => u && r()));
+  setStatus("已登入（匿名）");
+  return auth;
+}
+
+async function countDocs(collName){
+  const db = window.__db;
+  const snap = await getDocs(collection(db, collName));
+  return snap.size;
+}
+
+async function resetAll(collName){
+  const db = window.__db;
+  const snap = await getDocs(collection(db, collName));
+  let n = 0;
+  for (const d of snap.docs){
+    await deleteDoc(doc(db, collName, d.id));
+    n++;
+    if(n % 20 === 0) log(`已刪除 ${n} 筆...`);
+  }
+  return n;
+}
+
+ensureApp();
+await ensureAuth();
+
+document.getElementById('countBtn').addEventListener('click', async ()=>{
+  const name = (document.getElementById('coll').value || 'leaderboard').trim();
+  setStatus("計算中...");
+  try{
+    const c = await countDocs(name);
+    setStatus(`集合「${name}」目前共有 ${c} 筆文件`);
+  }catch(e){
+    setStatus("計算失敗"); log(e.stack || e.message || e);
+  }
+});
+
+document.getElementById('confirm').addEventListener('input', (e)=>{
+  document.getElementById('resetBtn').disabled = (e.target.value.trim() !== 'DELETE');
+});
+
+document.getElementById('resetBtn').addEventListener('click', async ()=>{
+  const name = (document.getElementById('coll').value || 'leaderboard').trim();
+  if (!confirm(`⚠️ 確定要刪除「${name}」的所有文件嗎？此動作不可復原！`)) return;
+  setStatus("刪除中...");
+  try{
+    const deleted = await resetAll(name);
+    setStatus(`完成！已刪除 ${deleted} 筆文件。`);
+    log("完成");
+  }catch(e){
+    setStatus("刪除失敗"); log(e.stack || e.message || e);
+  }
+});
+</script>
+</body>
+</html>
