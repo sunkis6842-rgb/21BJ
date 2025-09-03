@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>周易六爻選擇器 v1.8（手機好讀·七面向解讀）</title>
+<meta name="theme-color" content="#ffffff" />
+<style>
+  :root{
+    --bg:#ffffff; --ink:#0b1220; --muted:#6b7280; --line:#e5e7eb; --card:#ffffff;
+    --accent:#111827; --accent-soft:#f3f4f6; --shadow: 0 1px 0 #11182710, 0 12px 32px -24px #00000033;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"PingFang TC","Noto Sans TC",Segoe UI,Roboto,Helvetica,Arial}
+  body{font-size:16px;line-height:1.65}
+  header{
+    position:sticky;top:0;z-index:10;background:linear-gradient(180deg,#ffffff,#f9fafb);
+    padding:12px 16px calc(8px + var(--safe-top));border-bottom:1px solid var(--line)
+  }
+  h1{margin:0;font-size:18px;letter-spacing:.2px}
+  .muted{color:var(--muted)}
+  main{padding:12px 12px calc(120px + var(--safe-bottom));max-width:820px;margin:0 auto}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;box-shadow:var(--shadow);margin-bottom:12px}
+  .title{margin:0 0 8px;font-weight:800;letter-spacing:.3px}
+  .rows{display:flex;flex-direction:column-reverse;gap:14px}
+  .row{display:grid;grid-template-columns: 1fr auto auto;gap:10px;align-items:center}
+  .lineView{height:32px;display:flex;align-items:center}
+  .yang-line{height:4px;background:#111;border-radius:3px;width:100%}
+  .yin-wrap{display:flex;justify-content:space-between;align-items:center;width:100%}
+  .yin-seg{height:4px;background:#111;border-radius:3px;width:42%}
+  .controls{display:flex;gap:8px;align-items:center;justify-content:center}
+  .controls label{display:inline-flex;gap:6px;align-items:center;padding:6px 10px;border:1px solid var(--line);border-radius:999px;background:#fff}
+  input[type=radio],input[type=checkbox]{accent-color:#111;width:20px;height:20px}
+  .mv label{display:inline-flex;gap:6px;align-items:center;padding:6px 10px;border:1px solid var(--line);border-radius:999px;background:#fff}
+  .mv .tag{min-width:1.5em;display:inline-block;text-align:center}
+  .tip{font-size:14px;color:var(--muted);padding-top:4px}
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:#f3f4f6}
+  .name{font-size:22px;font-weight:900}
+  .badge{display:inline-block;font-size:12px;padding:2px 8px;border-radius:999px;background:#eef2ff;color:#3730a3;border:1px solid #e0e7ff}
+  .trigrams{display:flex;gap:6px;align-items:center}
+  .tri{display:inline-flex;gap:4px;align-items:center}
+  .tri .s{font-size:18px}
+  .tri .t{font-size:12px;color:#6b7280}
+  .gridA{display:grid;grid-template-columns:1fr;gap:10px;margin-top:6px}
+  @media(min-width:560px){ .gridA{grid-template-columns:1fr 1fr} }
+  @media(min-width:820px){ .gridA{grid-template-columns:1fr 1fr 1fr} }
+  .aspect{border:1px solid var(--line);border-radius:12px;padding:10px;background:#f9fafb}
+  .aspect b{font-size:13px}
+  .divider{height:1px;background:#e5e7eb;margin:6px 0}
+  .dock{
+    position:fixed;left:0;right:0;bottom:0;background:linear-gradient(180deg,#ffffff,#f9fafb);
+    border-top:1px solid var(--line);padding:10px 12px calc(10px + var(--safe-bottom));z-index:20
+  }
+  .dock .btns{max-width:820px;margin:0 auto;display:flex;gap:10px;flex-wrap:wrap}
+  button{
+    flex:1;background:#111;color:#fff;border:1px solid #111;border-radius:12px;padding:14px 12px;
+    font-size:16px;letter-spacing:.3px;box-shadow:0 2px 0 #00000015
+  }
+  button.secondary{background:#fff;color:#111;border-color:var(--line)}
+  button:active{transform:scale(.98)}
+</style>
+</head>
+<body>
+<header>
+  <h1>周易六爻選擇器 v1.8（手機好讀·七面向解讀） <span class="muted">｜財運・事業・家庭・愛情・健康・學業/考試・人際</span></h1>
+</header>
+
+<main>
+  <section class="card">
+    <h2 class="title">選擇六爻（自下而上）</h2>
+    <div class="rows" id="rows"></div>
+    <div class="tip">陽爻（⚊）整條實線；陰爻（⚋）左右兩短線。勾「動」＝老陽/老陰，之卦會把該爻翻轉。</div>
+  </section>
+
+  <section class="card">
+    <h2 class="title">結果</h2>
+    <div style="display:grid;gap:10px">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <span class="pill">本卦</span>
+        <span class="name" id="nameP">—</span>
+        <span class="badge" id="indexP">#—</span>
+      </div>
+      <div class="pill trigrams" id="pairP">—</div>
+      <div class="gridA" id="aspectsP"></div>
+
+      <div class="divider"></div>
+
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <span class="pill">之卦</span>
+        <span class="name" id="nameC">—</span>
+        <span class="badge" id="indexC">#—</span>
+      </div>
+      <div class="pill trigrams" id="pairC">—</div>
+      <div class="gridA" id="aspectsC"></div>
+
+      <div class="divider"></div>
+      <div class="pill" id="movers">動爻：—</div>
+    </div>
+  </section>
+</main>
+
+<div class="dock">
+  <div class="btns">
+    <button class="secondary" id="btnKun">全陰</button>
+    <button class="secondary" id="btnQian">全陽</button>
+    <button class="secondary" id="btnClear">清除</button>
+    <button id="btnOK">計算</button>
+  </div>
+</div>
+
+<script>
+// 八卦（底→頂三位）
+const trigramByBits = {
+  "111": {name:"乾", symbol:"☰"}, "000": {name:"坤", symbol:"☷"},
+  "100": {name:"震", symbol:"☳"}, "011": {name:"巽", symbol:"☴"},
+  "010": {name:"坎", symbol:"☵"}, "101": {name:"離", symbol:"☲"},
+  "001": {name:"艮", symbol:"☶"}, "110": {name:"兌", symbol:"☱"}
+};
+
+// 64卦（上卦|下卦 → 名稱）
+const hexName = {
+  "乾|乾":"乾","乾|兌":"履","乾|離":"同人","乾|震":"無妄","乾|巽":"姤","乾|坎":"訟","乾|艮":"遯","乾|坤":"否",
+  "兌|乾":"夬","兌|兌":"兌","兌|離":"革","兌|震":"隨","兌|巽":"大過","兌|坎":"困","兌|艮":"咸","兌|坤":"萃",
+  "離|乾":"大有","離|兌":"睽","離|離":"離","離|震":"噬嗑","離|巽":"鼎","離|坎":"未濟","離|艮":"旅","離|坤":"晉",
+  "震|乾":"大壯","震|兌":"歸妹","震|離":"豐","震|震":"震","震|巽":"恆","震|坎":"解","震|艮":"小過","震|坤":"豫",
+  "巽|乾":"小畜","巽|兌":"中孚","巽|離":"家人","巽|震":"益","巽|巽":"巽","巽|坎":"渙","巽|艮":"漸","巽|坤":"升",
+  "坎|乾":"需","坎|兌":"節","坎|離":"既濟","坎|震":"屯","坎|巽":"井","坎|坎":"坎","坎|艮":"蹇","坎|坤":"比",
+  "艮|乾":"大畜","艮|兌":"損","艮|離":"賁","艮|震":"頤","艮|巽":"蠱","艮|坎":"蒙","艮|艮":"艮","艮|坤":"剝",
+  "坤|乾":"泰","坤|兌":"臨","坤|離":"明夷","坤|震":"復","坤|巽":"觀","坤|坎":"師","坤|艮":"謙","坤|坤":"坤"
+};
+
+// 卦序（文王卦序 1~64）
+const hexIndex = {"乾":1,"坤":2,"屯":3,"蒙":4,"需":5,"訟":6,"師":7,"比":8,"小畜":9,"履":10,"泰":11,"否":12,"同人":13,"大有":14,"謙":15,"豫":16,"隨":17,"蠱":18,"臨":19,"觀":20,"噬嗑":21,"賁":22,"剝":23,"復":24,"無妄":25,"大畜":26,"頤":27,"大過":28,"坎":29,"離":30,"咸":31,"恆":32,"遯":33,"大壯":34,"晉":35,"明夷":36,"家人":37,"睽":38,"蹇":39,"解":40,"損":41,"益":42,"夬":43,"姤":44,"萃":45,"升":46,"困":47,"井":48,"革":49,"鼎":50,"震":51,"艮":52,"漸":53,"歸妹":54,"豐":55,"旅":56,"巽":57,"兌":58,"渙":59,"節":60,"中孚":61,"小過":62,"既濟":63,"未濟":64};
+
+// 分類（與 v1.7 相同，略調整重複）
+const hexCategory = {
+  "乾":"A","泰":"A","大有":"A","大壯":"A","晉":"A","豐":"A","同人":"A","益":"A","鼎":"A","離":"A",
+  "需":"B","履":"B","小畜":"B","節":"B","謙":"B","觀":"B",
+  "否":"C","剝":"C","困":"C","蹇":"C","明夷":"C",
+  "革":"D","解":"D","渙":"D","損":"D","蠱":"D",
+  "復":"E","無妄":"E","中孚":"E","比":"E","臨":"E",
+  "遯":"F","艮":"F","旅":"F",
+  "咸":"G","家人":"G","萃":"G","兌":"G","升":"G",
+  "訟":"H","睽":"H","噬嗑":"H","小過":"H","姤":"H",
+  "坎":"I","大過":"I",
+  "漸":"J","巽":"J","大畜":"J","井":"J",
+  "既濟":"K",
+  "未濟":"L","屯":"L","蒙":"L",
+  "震":"M","豫":"M","隨":"M","夬":"M","歸妹":"M","師":"M"
+};
+
+// 七面向模板（超白話）
+const aspectsByCat = {
+  "A":{ // Prosper
+    "財運":"風向正順，有進帳機會；記得分散風險、別 ALL IN。",
+    "事業":"可主動出擊、爭取資源；把規劃說清楚更容易上。",
+    "家庭":"家中氣氛不錯，適合定目標一起前進。",
+    "愛情":"正能量高，主動示好有戲；注意別太強勢。",
+    "健康":"精神飽滿，但避免過勞；作息別打亂。",
+    "學業":"狀態好、上手快；訂計畫照表操課。",
+    "人際":"人氣佳、貴人運不錯；記得回饋他人。"
+  },
+  "B":{ // Wait / Prepare
+    "財運":"先存量、做功課；觀望比衝動下單好。",
+    "事業":"以準備與磨合為主；先把 SOP 與資料整理好。",
+    "家庭":"穩穩走、別硬拗；多溝通就順。",
+    "愛情":"慢熱型，先培養信任感；別催進度。",
+    "健康":"重在調養與規律；飲食清爽、多睡一點。",
+    "學業":"打地基、補弱科；做題不求快、求穩。",
+    "人際":"先觀察與傾聽；少說多看、再決定站位。"
+  },
+  "C":{ // Block / Adversity
+    "財運":"資金面緊、波動大；保守應對，先止損。",
+    "事業":"卡關期，先縮小戰線；調整策略再出發。",
+    "家庭":"情緒容易上來；先冷靜、別互相消耗。",
+    "愛情":"容易誤會與拉扯；暫緩重大決定。",
+    "健康":"壓力累積、睡眠易亂；先把休息排進行程。",
+    "學業":"效率低、分心多；先做基礎題找手感。",
+    "人際":"氣氛緊繃；避免硬碰硬，找中立第三人協調。"
+  },
+  "D":{ // Reform / Cleanup
+    "財運":"汰弱留強、換倉調組合；資金配置要更新。",
+    "事業":"清理舊問題、換流程；短痛換長安。",
+    "家庭":"大掃除式整理，訂新規則更和諧。",
+    "愛情":"坦白談需求，調整互動就回到軌道。",
+    "健康":"調整生活作息；改掉壞習慣最有效。",
+    "學業":"換讀法、換題型；錯題本好好整理。",
+    "人際":"換圈或重整關係；彼此界線說清楚。"
+  },
+  "E":{ // Return / Virtue
+    "財運":"不貪快，穩穩存；長期紀律最賺。",
+    "事業":"回歸基本功，守信用、守品質；口碑加分。",
+    "家庭":"回到初心，多做實際關心。",
+    "愛情":"真誠最有力；慢慢培養就甜。",
+    "健康":"規律運動與飲食；基本功才是王道。",
+    "學業":"按部就班複習；日積月累見成效。",
+    "人際":"講誠信、守承諾；信任自然回流。"
+  },
+  "F":{ // Retreat / Stop / Boundary
+    "財運":"先控風險、減碼；避免追高殺低。",
+    "事業":"設停損與邊界；先守住主責，再談拓展。",
+    "家庭":"需要界線與空間；尊重彼此節奏。",
+    "愛情":"暫時別硬推；退一步反而更好。",
+    "健康":"休息比加碼更重要；避免舊傷復發。",
+    "學業":"先把該放的先放；聚焦最核心科目。",
+    "人際":"遠離耗能關係；保持禮貌距離。"
+  },
+  "G":{ // Union / Gather
+    "財運":"靠人脈合作，有案子與資源會聚合。",
+    "事業":"團隊協作見成效；分工對齊效率高。",
+    "家庭":"凝聚力提升，聚會與共識有幫助。",
+    "愛情":"互動甜、桃花旺；重視溝通與承諾。",
+    "健康":"適合團體運動與互相督促。",
+    "學業":"可結伴讀書、互相提問；吸收更快。",
+    "人際":"多參與社群活動；好消息在圈子裡。"
+  },
+  "H":{ // Conflict / Divergence
+    "財運":"訊息雜、意見多；先釐清規則再投資。",
+    "事業":"內外溝通要到位；避免硬槓，求交集。",
+    "家庭":"價值觀有分歧；找共同原則。",
+    "愛情":"易吵小事；換位思考、先降火。",
+    "健康":"情緒起伏影響身體；試著冥想或散步。",
+    "學業":"觀念不統一、答題易跑偏；先讀範例。",
+    "人際":"立場不同容易摩擦；先釐清目標再合作。"
+  },
+  "I":{ // Danger / Overload
+    "財運":"市場風險高、黑天鵝多；現金為王。",
+    "事業":"專案負擔重；簡化與優先排序最重要。",
+    "家庭":"避免情緒洪水；建立安全感。",
+    "愛情":"不確定感強；先穩定自己情緒。",
+    "健康":"注意心血管與慢性疲勞；別熬夜。",
+    "學業":"壓力山大；拆小目標、分段完成。",
+    "人際":"遠離是非場；低調處事。"
+  },
+  "J":{ // Growth / Gradual
+    "財運":"慢慢增長；定期定額、複利最有效。",
+    "事業":"按部就班有成果；別急著跨大步。",
+    "家庭":"循序建立習慣與秩序。",
+    "愛情":"日久見真心；細水長流。",
+    "健康":"慢跑、伸展、作息規律；重視耐力。",
+    "學業":"每天一點點；刷題與複習並進。",
+    "人際":"長期經營人脈；不求速成。"
+  },
+  "K":{ // Completion
+    "財運":"已落袋為安；後續風險管控最要緊。",
+    "事業":"案子收尾階段；文件與驗收要確實。",
+    "家庭":"放鬆一下、安排慶祝；也別忘了善後。",
+    "愛情":"關係進入穩定期；維持儀式感。",
+    "健康":"容易鬆懈；維持基本運動別中斷。",
+    "學業":"複查與總複習；錯題回顧一輪。",
+    "人際":"感謝名單要補上；迴圈收得漂亮。"
+  },
+  "L":{ // Not yet / Begin
+    "財運":"別急著求表現；先學知識、練體感。",
+    "事業":"新手期或剛起步；找導師、找方法。",
+    "家庭":"剛開始磨合；建立共識與規則。",
+    "愛情":"關係未定型；多觀察、多交流。",
+    "健康":"從最簡單的做起；先建立作息。",
+    "學業":"基礎優先；先把觀念讀懂。",
+    "人際":"先熟悉環境；多聽多看少表態。"
+  },
+  "M":{ // Mobilize / Follow
+    "財運":"機會來得快；把握但要設停損。",
+    "事業":"要行動、要節奏；跟對方向就起飛。",
+    "家庭":"氣氛活絡；安排共同行動更融洽。",
+    "愛情":"主動約、一起做事，感情升溫。",
+    "健康":"增加活動量；流汗讓狀態拉起來。",
+    "學業":"設定番茄鐘，短衝 + 休息交替。",
+    "人際":"主動聯繫、拓展圈子；好消息靠行動。"
+  }
+};
+
+function getAspectsByName(name){
+  const cat = hexCategory[name] || "L";
+  return aspectsByCat[cat] || aspectsByCat["L"];
+}
+
+// 構建六爻列（底→頂）
+const rows = document.getElementById('rows');
+const state = Array.from({length:6}, ()=>({ yang:false, move:false }));
+
+function renderRows(){
+  rows.innerHTML = '';
+  for(let i=0;i<6;i++){
+    const idx = i;
+    const el = document.createElement('div'); el.className='row';
+
+    const bar = document.createElement('div'); bar.className='lineView';
+    if(state[idx].yang){
+      const y = document.createElement('div'); y.className='yang-line'; bar.appendChild(y);
+    } else {
+      const wrap = document.createElement('div'); wrap.className='yin-wrap';
+      const l = document.createElement('div'); l.className='yin-seg';
+      const r = document.createElement('div'); r.className='yin-seg';
+      wrap.append(l,r); bar.appendChild(wrap);
+    }
+    el.appendChild(bar);
+
+    const ctrl = document.createElement('div'); ctrl.className='controls';
+    const ly = document.createElement('label');
+    const rY = document.createElement('input'); rY.type='radio'; rY.name='l'+idx; rY.checked = state[idx].yang;
+    rY.onchange = ()=>{ state[idx].yang=true; renderRows(); };
+    ly.append(rY, document.createTextNode('陽 ⚊'));
+    const ln = document.createElement('label');
+    const rN = document.createElement('input'); rN.type='radio'; rN.name='l'+idx; rN.checked = !state[idx].yang;
+    rN.onchange = ()=>{ state[idx].yang=false; renderRows(); };
+    ln.append(rN, document.createTextNode('陰 ⚋'));
+    ctrl.append(ly, ln);
+    el.appendChild(ctrl);
+
+    const mv = document.createElement('div'); mv.className='mv';
+    const mvLabel = document.createElement('label');
+    const mvCheck = document.createElement('input'); mvCheck.type='checkbox'; mvCheck.checked = state[idx].move;
+    const tag = document.createElement('span'); tag.className='tag'; tag.textContent = state[idx].move ? (state[idx].yang?'✕':'○') : '';
+    mvCheck.onchange = ()=>{ state[idx].move = mvCheck.checked; tag.textContent = mvCheck.checked ? (state[idx].yang?'✕':'○') : ''; };
+    mvLabel.append(mvCheck, document.createTextNode('動 '), tag);
+    mv.appendChild(mvLabel);
+    el.appendChild(mv);
+
+    rows.appendChild(el);
+  }
+}
+renderRows();
+
+// 快捷鍵
+document.getElementById('btnClear').onclick = ()=>{ state.forEach(s=>{s.yang=false; s.move=false;}); renderRows(); showResult(null); };
+document.getElementById('btnQian').onclick = ()=>{ state.forEach(s=>{s.yang=true; s.move=false;}); renderRows(); };
+document.getElementById('btnKun').onclick = ()=>{ state.forEach(s=>{s.yang=false; s.move=false;}); renderRows(); };
+
+// 計算
+function compute(){
+  const primary = state.map(s=> s.yang?1:0);  // 底→頂
+  const changed = state.map(s=> s.move ? (s.yang?0:1) : (s.yang?1:0));
+  const lowP = ''+primary[0]+primary[1]+primary[2];
+  const upP  = ''+primary[3]+primary[4]+primary[5];
+  const lowC = ''+changed[0]+changed[1]+changed[2];
+  const upC  = ''+changed[3]+changed[4]+changed[5];
+  const upTriP = trigramByBits[upP], lowTriP = trigramByBits[lowP];
+  const upTriC = trigramByBits[upC], lowTriC = trigramByBits[lowC];
+  const nameP = hexName[`${upTriP.name}|${lowTriP.name}`];
+  const nameC = hexName[`${upTriC.name}|${lowTriC.name}`];
+  const movers = state.map((s,i)=> s.move ? (i+1):0).filter(Boolean);
+  return {
+    nameP, nameC, upTriP, lowTriP, upTriC, lowTriC,
+    indexP: hexIndex[nameP] || "—", indexC: hexIndex[nameC] || "—",
+    movers
+  };
+}
+
+function renderAspects(container, aspects){
+  container.innerHTML = '';
+  const items = [
+    ["財運", aspects["財運"]],
+    ["事業", aspects["事業"]],
+    ["家庭", aspects["家庭"]],
+    ["愛情", aspects["愛情"]],
+    ["健康", aspects["健康"]],
+    ["學業/考試", aspects["學業"]],
+    ["人際", aspects["人際"]]
+  ];
+  for(const [k,v] of items){
+    const d = document.createElement('div'); d.className='aspect';
+    d.innerHTML = `<b>${k}</b>：${v}`;
+    container.appendChild(d);
+  }
+}
+
+function showResult(r){
+  const nameP = document.getElementById('nameP');
+  const pairP = document.getElementById('pairP');
+  const indexP= document.getElementById('indexP');
+  const aspectsP = document.getElementById('aspectsP');
+  const nameC = document.getElementById('nameC');
+  const pairC = document.getElementById('pairC');
+  const indexC= document.getElementById('indexC');
+  const aspectsC = document.getElementById('aspectsC');
+  const movers= document.getElementById('movers');
+  if(!r){
+    nameP.textContent='—'; indexP.textContent='#—'; pairP.textContent='—'; aspectsP.innerHTML='';
+    nameC.textContent='—'; indexC.textContent='#—'; pairC.textContent='—'; aspectsC.innerHTML='';
+    movers.textContent='動爻：—'; return;
+  }
+  nameP.textContent = r.nameP; indexP.textContent = r.indexP ? `#${r.indexP}` : '#—';
+  pairP.innerHTML = `<span class="tri"><span class="s">${r.upTriP.symbol}</span><span class="t">${r.upTriP.name}</span></span>｜<span class="tri"><span class="s">${r.lowTriP.symbol}</span><span class="t">${r.lowTriP.name}</span></span>`;
+  renderAspects(aspectsP, getAspectsByName(r.nameP));
+
+  nameC.textContent = r.nameC + (r.nameC===r.nameP?'（同本卦）':'');
+  indexC.textContent = r.indexC ? `#${r.indexC}` : '#—';
+  pairC.innerHTML = `<span class="tri"><span class="s">${r.upTriC.symbol}</span><span class="t">${r.upTriC.name}</span></span>｜<span class="tri"><span class="s">${r.lowTriC.symbol}</span><span class="t">${r.lowTriC.name}</span></span>`;
+  renderAspects(aspectsC, getAspectsByName(r.nameC));
+
+  movers.textContent= r.movers.length? `動爻：第 ${r.movers.join('、')} 爻` : '動爻：無';
+}
+
+document.getElementById('btnOK').onclick = ()=>{
+  const r = compute();
+  showResult(r);
+};
+</script>
+</body>
+</html>
