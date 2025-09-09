@@ -1,0 +1,422 @@
+
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>富貴三寶 · 三手獨立版 v3（每手可調）</title>
+<style>
+  :root{--bg:#0b1520;--panel:#0f2233;--accent:#34d399;--muted:#9ca3af;--danger:#ef4444;--warn:#f59e0b;--text:#e5e7eb}
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1200px 700px at 50% -10%,#1d3557 0%,#0b1520 60%);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Noto Sans TC,Arial,sans-serif}
+  header{padding:16px 20px;border-bottom:1px solid #173047;background:#0f2233aa;backdrop-filter:blur(6px);position:sticky;top:0;z-index:10}
+  header h1{margin:0;font-size:20px;letter-spacing:.5px}
+  .container{max-width:1100px;margin:18px auto;padding:0 12px;display:grid;grid-template-columns:1fr;gap:12px}
+  .card{background:linear-gradient(180deg,#0f2233 0%,#0c1a28 100%);border:1px solid #1a3347;border-radius:18px;box-shadow:0 12px 30px #0009,inset 0 0 0 1px #17304780}
+  .card h2{margin:0 0 10px 0;font-size:16px;font-weight:700;color:#cfe6ff}
+  .pad{padding:14px}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .grid{display:grid;gap:10px}
+  .three{grid-template-columns:repeat(3,1fr)}
+  .two{grid-template-columns:1fr 1fr}
+  .money{font-variant-numeric:tabular-nums}
+  .table{position:relative;padding:14px;border-radius:18px;background:radial-gradient(900px 420px at 50% -10%,#0f3b2e 0%,#061710 70%);border:1px solid #1a5d47;min-height:220px;box-shadow:inset 0 10px 40px #0008}
+  .divider{height:1px;background:#1a3347;margin:10px 0}
+  .section-title{opacity:.9;margin:0 0 6px 0;font-size:12px;text-transform:uppercase;letter-spacing:1px;color:#9fe0c7;text-align:center}
+  .hint{font-size:11px;color:#94a3b8;text-align:center}
+  .status{min-height:28px;color:#cbd5e1}
+  .cards{display:flex;gap:8px;flex-wrap:nowrap;justify-content:center}
+  .card3{width:84px;height:120px;border-radius:14px;background:linear-gradient(180deg,#164a6b 0%,#0f2a40 100%);border:1px solid #2a4a63;display:flex;align-items:center;justify-content:center;color:#e5e7eb;font-weight:800;position:relative;box-shadow:0 10px 18px #000a, inset 0 0 0 1px #3b6b89}
+  .card3.pop{animation:pop .22s ease-out}
+  @keyframes pop{0%{transform:scale(.9);opacity:.2}100%{transform:scale(1);opacity:1}}
+  .card3 .suit{font-size:30px;position:absolute;bottom:6px;right:8px;opacity:.9}
+  .playerRow{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:6px}
+  .playerSlot{background:#081b26;border:1px solid #163149;border-radius:14px;padding:10px}
+  .playerSlot .slotHead{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;background:#0a1824;border:1px solid #1a3347;color:#cfe6ff;font-size:11px}
+  .btn{cursor:pointer;border:none;border-radius:12px;font-weight:700;background:#18344a;color:#e5e7eb;border:1px solid #2a4a63;text-align:center;padding:10px 12px}
+  .btn:hover{background:#1c3c55}
+  .btn-primary{background:var(--accent);color:#0a141e}
+  .btn-ghost{background:transparent;border:1px dashed #355a76;color:#cfe6ff}
+  .seg{display:flex;gap:6px;flex-wrap:wrap}
+  .seg .btn{padding:8px 10px;border-radius:10px}
+  .seg .btn.active{background:linear-gradient(180deg,#1fb79f 0%,#34d399 100%);color:#0a141e;border-color:#1d8f77;box-shadow:0 4px 12px #0007}
+  #panel-bets .row{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+  #panel-bets .row button{width:100%;padding:14px;font-size:15px}
+  /* pnl badge */
+  .pnl-badge{display:inline-block;padding:4px 12px;border:2px solid rgba(148,163,184,.6);border-radius:12px;background:rgba(148,163,184,.12);line-height:1.2}
+  .pnl-badge.win{color:#16a34a;border-color:rgba(22,163,74,.8);background:rgba(22,163,74,.10)}
+  .pnl-badge.lose{color:#dc2626;border-color:rgba(220,38,38,.8);background:rgba(220,38,38,.08)}
+</style>
+</head>
+<body>
+  <header>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+      <h1>富貴三寶 · 三手獨立版 v3</h1>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button id="themeBtn" class="btn" onclick="toggleTheme()">切換主題</button>
+      </div>
+    </div>
+  </header>
+  <main class="container">
+    <section class="card pad">
+      <h2>賭桌</h2>
+      <div class="table">
+        <p class="section-title">莊家手牌</p>
+        <div class="cards" id="dealerCards"></div>
+        <p class="hint" id="dealerInfo">莊家：面朝下</p>
+        <div class="divider"></div>
+        <p class="section-title">玩家三手（每手可調 Ante / Pair+）</p>
+
+        <div class="playerRow">
+          <!-- slot 1 -->
+          <div class="playerSlot" id="slot1">
+            <div class="slotHead">
+              <strong>手一</strong>
+              <span class="pill" id="hint1">未發牌</span>
+            </div>
+            <div class="grid two" style="margin-bottom:6px">
+              <div>
+                <div class="hint" style="margin-bottom:4px">Ante</div>
+                <input id="ante1" type="hidden" value="300" />
+                <div class="seg">
+                  <button class="btn active" data-ante="1-300" onclick="setAnte(1,300)">300</button>
+                  <button class="btn" data-ante="1-500" onclick="setAnte(1,500)">500</button>
+                  <button class="btn" data-ante="1-0"   onclick="setAnte(1,0)">不下</button>
+                </div>
+              </div>
+              <div>
+                <div class="hint" style="margin-bottom:4px">Pair+</div>
+                <input id="pp1" type="hidden" value="300" />
+                <div class="seg">
+                  <button class="btn active" data-pp="1-300" onclick="setPP(1,300)">300</button>
+                  <button class="btn" data-pp="1-500" onclick="setPP(1,500)">500</button>
+                  <button class="btn" data-pp="1-0"   onclick="setPP(1,0)">不下</button>
+                </div>
+              </div>
+            </div>
+            <div class="cards" id="playerCards1"></div>
+            <div class="row" style="margin-top:8px">
+              <button class="btn" id="play1" onclick="playerPlay(0)" disabled>跟注</button>
+              <button class="btn-ghost" id="fold1" onclick="playerFold(0)" disabled>棄牌</button>
+            </div>
+          </div>
+
+          <!-- slot 2 -->
+          <div class="playerSlot" id="slot2">
+            <div class="slotHead">
+              <strong>手二</strong>
+              <span class="pill" id="hint2">未發牌</span>
+            </div>
+            <div class="grid two" style="margin-bottom:6px">
+              <div>
+                <div class="hint" style="margin-bottom:4px">Ante</div>
+                <input id="ante2" type="hidden" value="300" />
+                <div class="seg">
+                  <button class="btn active" data-ante="2-300" onclick="setAnte(2,300)">300</button>
+                  <button class="btn" data-ante="2-500" onclick="setAnte(2,500)">500</button>
+                  <button class="btn" data-ante="2-0"   onclick="setAnte(2,0)">不下</button>
+                </div>
+              </div>
+              <div>
+                <div class="hint" style="margin-bottom:4px">Pair+</div>
+                <input id="pp2" type="hidden" value="300" />
+                <div class="seg">
+                  <button class="btn active" data-pp="2-300" onclick="setPP(2,300)">300</button>
+                  <button class="btn" data-pp="2-500" onclick="setPP(2,500)">500</button>
+                  <button class="btn" data-pp="2-0"   onclick="setPP(2,0)">不下</button>
+                </div>
+              </div>
+            </div>
+            <div class="cards" id="playerCards2"></div>
+            <div class="row" style="margin-top:8px">
+              <button class="btn" id="play2" onclick="playerPlay(1)" disabled>跟注</button>
+              <button class="btn-ghost" id="fold2" onclick="playerFold(1)" disabled>棄牌</button>
+            </div>
+          </div>
+
+          <!-- slot 3 -->
+          <div class="playerSlot" id="slot3">
+            <div class="slotHead">
+              <strong>手三</strong>
+              <span class="pill" id="hint3">未發牌</span>
+            </div>
+            <div class="grid two" style="margin-bottom:6px">
+              <div>
+                <div class="hint" style="margin-bottom:4px">Ante</div>
+                <input id="ante3" type="hidden" value="300" />
+                <div class="seg">
+                  <button class="btn active" data-ante="3-300" onclick="setAnte(3,300)">300</button>
+                  <button class="btn" data-ante="3-500" onclick="setAnte(3,500)">500</button>
+                  <button class="btn" data-ante="3-0"   onclick="setAnte(3,0)">不下</button>
+                </div>
+              </div>
+              <div>
+                <div class="hint" style="margin-bottom:4px">Pair+</div>
+                <input id="pp3" type="hidden" value="300" />
+                <div class="seg">
+                  <button class="btn active" data-pp="3-300" onclick="setPP(3,300)">300</button>
+                  <button class="btn" data-pp="3-500" onclick="setPP(3,500)">500</button>
+                  <button class="btn" data-pp="3-0"   onclick="setPP(3,0)">不下</button>
+                </div>
+              </div>
+            </div>
+            <div class="cards" id="playerCards3"></div>
+            <div class="row" style="margin-top:8px">
+              <button class="btn" id="play3" onclick="playerPlay(2)" disabled>跟注</button>
+              <button class="btn-ghost" id="fold3" onclick="playerFold(2)" disabled>棄牌</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+        <div class="grid three">
+          <div><div class="hint">本金</div><div class="money" id="bankrollView">HKD 20,000</div></div>
+          <div><div class="hint">本局盈虧</div><div class="money"><span id="pnlView" class="pnl-badge">HKD 0</span></div></div>
+          <div><div class="hint">總局數 / 勝率</div><div class="money" id="statsView">0 / 0%</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card pad" id="panel-bets">
+      <h2>操作</h2>
+      <div class="row">
+        <button class="btn-primary" id="btnDeal" onclick="deal()">發牌</button>
+        <button class="btn" onclick="newRound(true)">整理</button>
+      </div>
+      <p class="status" id="status"></p>
+    </section>
+  </main>
+
+<script>
+// ====== 工具 ======
+function money(n){ return 'HKD ' + Number(n).toLocaleString('en-US',{maximumFractionDigits:0}); }
+let _audioCtx=null;function ac(){if(!_audioCtx){_audioCtx=new (window.AudioContext||window.webkitAudioContext)()}return _audioCtx}
+function beep(freq=880, dur=0.08, vol=0.05){try{const ctx=ac();const o=ctx.createOscillator();const g=ctx.createGain();o.type='sine';o.frequency.value=freq;g.gain.value=vol;o.connect(g);g.connect(ctx.destination);o.start();g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+dur);o.stop(ctx.currentTime+dur);}catch(e){}}
+function playChipDing(){beep(1200,0.06,0.04);} function playActionDing(){beep(700,0.07,0.05);}
+
+// 主題
+function toggleTheme(){const b=document.body,V='theme-vegas',N='theme-neo';if(b.classList.contains(V)){b.classList.remove(V);b.classList.add(N);localStorage.setItem('theme','neo');}
+else if(b.classList.contains(N)){b.classList.remove(N);localStorage.setItem('theme','default');}
+else{b.classList.add(V);localStorage.setItem('theme','vegas');}}
+(function(){const t=localStorage.getItem('theme');if(t==='vegas')document.body.classList.add('theme-vegas');else if(t==='neo')document.body.classList.add('theme-neo');})();
+
+// 牌
+const SUITS=['♠','♥','♦','♣'];
+const RANKS=['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+function buildShoe(decks=5){const cards=[];for(let d=0;d<decks;d++){for(const s of SUITS){for(const r of RANKS){cards.push({suit:s,rank:r});}}}for(let i=cards.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[cards[i],cards[j]]=[cards[j],cards[i]]}return cards;}
+let shoe=[];function draw(n){const out=[];for(let i=0;i<n;i++){out.push(shoe.pop());}return out;}
+
+// 牌型
+const rankValue=r=>({'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,'10':10,'J':11,'Q':12,'K':13,'A':14}[r]);
+function analyze3(cards){
+  const vals=cards.map(c=>rankValue(c.rank)).sort((a,b)=>a-b);
+  const suits=cards.map(c=>c.suit);
+  const counts={};for(const v of vals){counts[v]=(counts[v]||0)+1}
+  const isFlush=(new Set(suits)).size===1;
+  let isStraight=(vals[2]-vals[1]===1&&vals[1]-vals[0]===1);
+  if(JSON.stringify(vals)==='[2,3,14]'){isStraight=true}
+  const have3=Object.values(counts).includes(3);
+  const havePair=Object.values(counts).includes(2);
+  let cat=0;if(have3)cat=4;else if(isStraight&&isFlush)cat=5;else if(isStraight)cat=3;else if(isFlush)cat=2;else if(havePair)cat=1;else cat=0;
+  let sortedForCompare=[...vals];
+  if(havePair){const pairVal=Number(Object.keys(counts).find(k=>counts[k]===2));const single=Number(Object.keys(counts).find(k=>counts[k]===1));sortedForCompare=[single,pairVal,pairVal]}
+  let straightHigh=null;if(isStraight){straightHigh=(JSON.stringify(vals)==='[2,3,14]')?3:vals[2]}
+  return {cat,vals,suits,havePair,have3,isFlush,isStraight,straightHigh,cmpKey:sortedForCompare};
+}
+function compareHands(a,b){
+  if(a.cat!==b.cat)return a.cat-b.cat;
+  if(a.cat===5||a.cat===3){return a.straightHigh-b.straightHigh}
+  if(a.cat===2||a.cat===0){for(let i=2;i>=0;i--){if(a.vals[i]!==b.vals[i])return a.vals[i]-b.vals[i]}return 0}
+  if(a.cat===4){return a.vals[1]-b.vals[1]}
+  if(a.cat===1){if(a.cmpKey[1]!==b.cmpKey[1])return a.cmpKey[1]-b.cmpKey[1];return a.cmpKey[0]-b.cmpKey[0]}
+  return 0;
+}
+function handLabel(ana){return ['高牌','一對','同花','順子','三條','同花順'][ana.cat];}
+const SIDE_PAYS={pair:1,flush:4,straight:5,trips:25,straightflush:40};
+const ANTE_BONUS={flush:1,straight:2,trips:0,straightflush:0};
+function qualify(da){if(da.cat>=1)return true;return da.vals[2]>=12}
+
+// 顯示
+function suitStyle(s){switch(s){case '♠': return {bg:'linear-gradient(180deg,#0f2a40 0%,#081523 100%)', border:'#355a76', color:'#cfe6ff'};case '♥': return {bg:'linear-gradient(180deg,#3a0f1b 0%,#22080f 100%)', border:'#7a2f39', color:'#ffc9d1'};case '♦': return {bg:'linear-gradient(180deg,#3a2a0f 0%,#1f1406 100%)', border:'#8b6b00', color:'#ffe4a3'};case '♣': return {bg:'linear-gradient(180deg,#133a1b 0%,#0a1f10 100%)', border:'#1a5d47', color:'#aef7c8'};default: return {bg:'linear-gradient(180deg,#164a6b 0%,#0f2a40 100%)', border:'#2a4a63', color:'#e5e7eb'};}}
+function renderCards(containerId,cards,hide=false){
+  const el=document.getElementById(containerId);el.innerHTML='';
+  cards.forEach(c=>{
+    const div=document.createElement('div');div.className='card3 pop';
+    if(hide){div.innerHTML='<span class="muted">🂠</span>';}else{
+      const st=suitStyle(c.suit||'');div.style.background=st.bg;div.style.borderColor=st.border;div.style.color=st.color;
+      div.innerHTML=`<div style="font-size:20px">${c.rank}</div><div class="suit">${c.suit}</div>`;
+    }
+    el.appendChild(div);
+  });
+}
+function setPnlText(v){
+  const el=document.getElementById('pnlView'); if(!el) return;
+  const isWin = v>=0;
+  el.textContent = money(v);
+  el.classList.remove('win','lose');
+  el.classList.add(isWin? 'win':'lose');
+}
+
+// 狀態
+let bankroll=20000;
+let stats={rounds:0,wins:0};
+let round=null;
+function updateHUD(){
+  document.getElementById('bankrollView').textContent=money(bankroll);
+  const wr=stats.rounds?Math.round(stats.wins*100/stats.rounds):0;
+  document.getElementById('statsView').textContent=`${stats.rounds} / ${wr}%`;
+}
+
+// 下注設定（每手）
+function syncSegActive(prefix, idx, val){
+  document.querySelectorAll(`[data-${prefix}^="${idx}-"]`).forEach(btn=>{
+    btn.classList.toggle('active', btn.getAttribute(`data-${prefix}`)===`${idx}-${val}`);
+  });
+}
+function setAnte(idx,val){ document.getElementById(`ante${idx}`).value=val; syncSegActive('ante', idx, val); playChipDing(); }
+function setPP(idx,val){ document.getElementById(`pp${idx}`).value=val; syncSegActive('pp', idx, val); playChipDing(); }
+
+// Pair+ & Ante bonus
+function calcPairPlus(pa,stake){if(stake<=0)return 0; if(pa.cat===5)return stake*(SIDE_PAYS.straightflush+1); if(pa.cat===4)return stake*(SIDE_PAYS.trips+1); if(pa.cat===3)return stake*(SIDE_PAYS.straight+1); if(pa.cat===2)return stake*(SIDE_PAYS.flush+1); if(pa.cat===1)return stake*(SIDE_PAYS.pair+1); return 0;}
+function calcAnteBonus(pa,ante){let b=0;if(pa.cat===5)b+=ante*ANTE_BONUS.straightflush; if(pa.cat===4)b+=ante*ANTE_BONUS.trips; if(pa.cat===3)b+=ante*ANTE_BONUS.straight; if(pa.cat===2)b+=ante*ANTE_BONUS.flush;return b}
+
+// 發牌
+function deal(){
+  if(round && !round.settled){document.getElementById('status').textContent='尚未結算，請先完成三手的跟/棄';return}
+  const antes=[1,2,3].map(i=>Number(document.getElementById(`ante${i}`).value)||0);
+  const pps=[1,2,3].map(i=>Number(document.getElementById(`pp${i}`).value)||0);
+
+  if(antes.every(a=>a<=0) && pps.every(p=>p<=0)){document.getElementById('status').textContent='請至少在任一手選擇下注';return}
+
+  const need = antes.reduce((s,a)=>s+a,0) + pps.reduce((s,p)=>s+p,0);
+  if(bankroll < need){document.getElementById('status').textContent='本金不足';return}
+
+  bankroll -= need;
+  shoe = buildShoe(5);
+
+  const players = [0,1,2].map((_,i)=>({pc:draw(3), pa:null, ante:antes[i], pp:pps[i], play:0, decision:null}));
+  const dc = draw(3); const da = analyze3(dc);
+
+  players.forEach((pl,i)=>{
+    pl.pa = analyze3(pl.pc);
+    renderCards(`playerCards${i+1}`, pl.pc);
+    document.getElementById(`hint${i+1}`).textContent = `你的牌：${handLabel(pl.pa)}`;
+    const canDecide = pl.ante>0;
+    document.getElementById(`play${i+1}`).disabled = !canDecide;
+    document.getElementById(`fold${i+1}`).disabled = !canDecide;
+    if(!canDecide && pl.pp>0){ pl.decision='PP_ONLY'; document.getElementById(`hint${i+1}`).textContent += '（只下側注）'; }
+  });
+
+  renderCards('dealerCards',[{},{},{}],true);
+  document.getElementById('dealerInfo').textContent='莊家：面朝下';
+
+  round = {players, dc, da, startBankroll:bankroll+need, settled:false, revealed:false};
+  document.getElementById('btnDeal').disabled = true;
+  document.getElementById('status').innerHTML='請分別對三手選擇 <strong>跟注</strong> 或 <strong>棄牌</strong>。';
+  updateHUD();
+}
+
+// 跟注/棄牌（單手）
+function playerPlay(idx){
+  if(!round || round.settled) return;
+  const pl = round.players[idx];
+  if(pl.decision) return;
+  if(bankroll < pl.ante){document.getElementById('status').textContent=`手${idx+1} 本金不足以跟注`;return}
+  bankroll -= pl.ante; pl.play = pl.ante; pl.decision='PLAY'; playActionDing();
+  document.getElementById(`play${idx+1}`).disabled = true;
+  document.getElementById(`fold${idx+1}`).disabled = true;
+  document.getElementById(`hint${idx+1}`).textContent = `選擇跟注（${handLabel(pl.pa)}）`;
+  maybeSettle();
+  updateHUD();
+}
+function playerFold(idx){
+  if(!round || round.settled) return;
+  const pl = round.players[idx];
+  if(pl.decision) return;
+  pl.decision='FOLD'; playActionDing();
+  document.getElementById(`play${idx+1}`).disabled = true;
+  document.getElementById(`fold${idx+1}`).disabled = true;
+  document.getElementById(`hint${idx+1}`).textContent = `你棄牌（${handLabel(pl.pa)}）`;
+  if(navigator.vibrate){navigator.vibrate(20)}
+  maybeSettle();
+}
+
+// 都決定 → 結算
+function maybeSettle(){
+  if(!round) return;
+  const allDone = round.players.every(pl => pl.decision!==null);
+  if(!allDone) return;
+  if(!round.revealed){
+    renderCards('dealerCards', round.dc, false);
+    document.getElementById('dealerInfo').textContent = `莊家：${handLabel(round.da)}`;
+    round.revealed=true;
+  }
+  settleAll();
+}
+
+function calcPairPlus(pa,stake){if(stake<=0)return 0; if(pa.cat===5)return stake*(SIDE_PAYS.straightflush+1); if(pa.cat===4)return stake*(SIDE_PAYS.trips+1); if(pa.cat===3)return stake*(SIDE_PAYS.straight+1); if(pa.cat===2)return stake*(SIDE_PAYS.flush+1); if(pa.cat===1)return stake*(SIDE_PAYS.pair+1); return 0;}
+
+function settleAll(){
+  const dealerQ = qualify(round.da);
+
+  round.players.forEach((pl,i)=>{
+    const idx=i+1;
+    const ppReturn = calcPairPlus(pl.pa, pl.pp);
+    let msg = `手${idx}：`;
+
+    if(pl.decision==='PP_ONLY'){
+      if(ppReturn>0){bankroll+=ppReturn; msg += `側注派發 ${money(ppReturn)}`;}
+      else{ msg += '側注未中'; }
+    }else if(pl.decision==='FOLD'){
+      msg += '你棄牌；失去 Ante 與側注';
+    }else if(pl.decision==='PLAY'){
+      const cmp = compareHands(pl.pa, round.da);
+      if(!dealerQ){
+        bankroll += pl.ante*2;
+        bankroll += pl.play;
+        msg += '莊家不合格：Ante 1:1，Play 退回';
+      }else{
+        if(cmp>0){
+          bankroll += (pl.ante*2 + pl.play*2);
+          msg += '你勝：Ante、Play 各 1:1';
+        }else if(cmp<0){
+          msg += '你負：Ante、Play 皆失去';
+        }else{
+          bankroll += (pl.ante + pl.play);
+          msg += '平手：Ante、Play 退回';
+        }
+      }
+      const bonus = calcAnteBonus(pl.pa, pl.ante);
+      if(bonus>0){bankroll += bonus; msg += `；主體加碼 ${money(bonus)}`;}
+      if(ppReturn>0){bankroll += ppReturn; msg += `；側注 ${money(ppReturn)}`; }
+    }
+
+    document.getElementById(`hint${idx}`).textContent = msg;
+  });
+
+  round.settled = true;
+  setPnlText(bankroll - round.startBankroll);
+  document.getElementById('status').innerHTML = '<strong>三手結算完成</strong>';
+  document.getElementById('btnDeal').disabled = false;
+  updateHUD();
+}
+
+function newRound(hard=false){
+  if(hard){
+    ['playerCards1','playerCards2','playerCards3','dealerCards'].forEach(id=>{const el=document.getElementById(id); if(el) el.innerHTML='';});
+    ['hint1','hint2','hint3'].forEach(id=>document.getElementById(id).textContent='未發牌');
+    document.getElementById('dealerInfo').textContent='莊家：面朝下';
+    document.getElementById('status').textContent='';
+    setPnlText(0);
+  }
+  ['play1','play2','play3','fold1','fold2','fold3'].forEach(id=>{const el=document.getElementById(id); if(el){el.disabled=true}});
+  document.getElementById('btnDeal').disabled=false;
+  round=null;
+}
+
+// 初始化
+(function init(){ updateHUD(); })();
+</script>
+</body>
+</html>
