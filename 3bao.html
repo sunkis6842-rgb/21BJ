@@ -246,7 +246,7 @@ function toggleTheme(){
 // ====== 牌組與抽牌 ======
 const SUITS=['♠','♥','♦','♣'];
 const RANKS=['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
-function buildShoe(decks=5){const cards=[];for(let d=0;d<decks;d++){for(const s of SUITS){for(const r of RANKS){cards.push({suit:s,rank:r});}}}for(let i=cards.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[cards[i],cards[j]]=[cards[j],cards[i]]}return cards;}
+function buildShoe(decks=1){const cards=[];for(let d=0;d<decks;d++){for(const s of SUITS){for(const r of RANKS){cards.push({suit:s,rank:r});}}}for(let i=cards.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[cards[i],cards[j]]=[cards[j],cards[i]]}return cards;}
 let shoe=[];
 function draw(n){const out=[];for(let i=0;i<n;i++){out.push(shoe.pop());}return out;}
 
@@ -340,8 +340,8 @@ function deal(){
   if(ante<=0&&pp<=0){log('請至少選擇一種下注');return}
   if(bankroll<ante+pp){log('本金不足');return}
   const startBankroll=bankroll;bankroll-=(ante+pp);
-  // 每局重洗：重新建立 5 副牌鞋
-  shoe=buildShoe(5);
+  // 每局重洗：重新建立 1 副牌鞋
+  shoe=buildShoe(1);
   const pc=draw(3),dc=draw(3);const pa=analyze3(pc),da=analyze3(dc);
   round={pc,dc,pa,da,ante,pp,play:0,settled:false,startBankroll};
   incSpecial(pa);
